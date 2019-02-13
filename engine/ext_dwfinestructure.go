@@ -2,8 +2,8 @@ package engine
 
 import (
 	// "log"
-	"fmt"
-	// "github.com/mumax/3/data"
+	// "fmt"
+	"github.com/mumax/3/data"
 )
 
 var (
@@ -16,14 +16,11 @@ var (
 )
 
 func getDWFineSpeed() float64 {
-	fmt.Print(getDWxFinePos())
+	// fmt.Print(getDWxFinePos())
 	if NSteps == 0 {
 		lastDWPos = getDWxFinePos()
-		lastTime = Time
-		lastStep = NSteps
-		lastDWSpeed = 0
 	}
-	if lastStep != NSteps {
+	if lastTime != Time {
 		currentDWPos := getDWxFinePos()
 		lastDWSpeed = (currentDWPos - lastDWPos)/(Time - lastTime)
 		lastTime = Time
@@ -42,6 +39,16 @@ func getDWxFinePos() float64 {
 func _window2DDWxPos() float64 {
 	mz := M.Buffer().Comp(Z).HostCopy().Scalars()[0]
 	c := Mesh().CellSize()
+
+	// If ShiftMagL and ShiftMagR are not specified, use the current magnetic configuration to determine what these
+	// values should be; they are used in _1DDWxPos to find the zero crossing, where the domain wall is centered.
+	zero := data.Vector{0, 0, 0}
+	if ShiftMagL == zero || ShiftMagR == zero {
+		sign := _sign32(mz[len(mz)/2][0])
+		ShiftMagL[Z] = float64(sign)
+		ShiftMagR[Z] = -float64(sign)
+	}
+
 	pos := _avg(_2DDWxPos(mz))
 	return c[0]*float64(pos)
 }

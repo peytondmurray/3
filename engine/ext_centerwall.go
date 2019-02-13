@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"log"
+	// "log"
 	"fmt"
 	"github.com/mumax/3/data"
 )
@@ -31,7 +31,7 @@ func centerWall(c int) {
 
 	sign := magsign(ShiftMagL[c])
 
-	log.Println("mc", mc, "tol", tolerance)
+	// log.Println("mc", mc, "tol", tolerance)
 
 	if mc < -tolerance {
 		Shift(sign)

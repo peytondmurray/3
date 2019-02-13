@@ -1,7 +1,8 @@
 package engine
 
 import (
-	//"fmt"
+	// "log"
+	"fmt"
 	// "github.com/mumax/3/data"
 )
 
@@ -15,6 +16,7 @@ var (
 )
 
 func getDWFineSpeed() float64 {
+	fmt.Print(getDWxFinePos())
 	if NSteps == 0 {
 		lastDWPos = getDWxFinePos()
 		lastTime = Time
@@ -32,7 +34,8 @@ func getDWFineSpeed() float64 {
 }
 
 func getDWxFinePos() float64 {
-	return TotalShift + _window2DDWxPos()
+	// print(GetShiftPos())
+	return _window2DDWxPos() + GetShiftPos()
 }
 
 // _window2DDWxPos finds the position of the domain wall within the simulation window
@@ -43,31 +46,53 @@ func _window2DDWxPos() float64 {
 	return c[0]*float64(pos)
 }
 
-func _2DDWxPos(mz [][]float32) []int {
-	pos := make([]int, len(mz))
+func _2DDWxPos(mz [][]float32) []float32 {
+	pos := make([]float32, len(mz))
 	for iy := range mz {
 		pos[iy] = _1DDWxPos(mz[iy])
 	}
 	return pos
 }
 
-func _1DDWxPos(mz []float32) int {
-	min := abs(mz[0])
-	pos := 0
-	for ix := range mz {
-		if abs(min) > abs(mz[ix]) {
-			pos = ix
-			min = abs(mz[ix])
+func _1DDWxPos(mz []float32) float32 {
+	// Find the DW position by finding the index of the element with z-component nearest to 0
+	// min := abs(mz[0])
+	// pos := 0
+	// for ix := range mz {
+	// 	if abs(min) > abs(mz[ix]) {
+	// 		pos = ix
+	// 		min = abs(mz[ix])
+	// 	}
+	// }
+
+	signR := _sign32(float32(ShiftMagR[Z]))
+	signL := _sign32(float32(ShiftMagL[Z]))
+
+	// print(signL, signR)
+
+	for ix := 0; ix < len(mz)-1; ix++ {
+		if _sign32(mz[ix]) == signL && _sign32(mz[ix+1]) == signR {
+			return _interpolateZeroCrossing(mz, ix)
 		}
 	}
-
-	return pos
+	panic("Can't find domain wall position.")
 }
 
-func _avg(s []int) float32 {
-	sum := 0
+func _interpolateZeroCrossing(mz []float32, i int) float32 {
+	return float32(i)-(mz[i]/(mz[i+1] - mz[i]))
+}
+
+func _sign32(f float32) int {
+	if f >= 0 {
+		return 1
+	}
+	return -1
+}
+
+func _avg(s []float32) float32 {
+	sum := float32(0)
 	for v := range s {
 		sum += s[v]
 	}
-	return float32(sum)/float32(len(s))
+	return sum/float32(len(s))
 }

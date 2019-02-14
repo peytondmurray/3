@@ -4,6 +4,7 @@ import (
 	// "log"
 	// "fmt"
 	"github.com/mumax/3/data"
+	"math"
 )
 
 var (
@@ -13,21 +14,71 @@ var (
 	lastTime	float64			// Time at the last time we checked DW speed
 	lastDWSpeed float64			// Speed at the last time we checked DW speed
 	lastStep	int				// Step at the last time we checked DW speed
+	DWPosStack	posStack		// Most recent positions of DW speed
 )
+
+// FIFO structure for storing DW positions
+type posStack struct{
+	data []float64
+	size int
+}
+
+// Preserving the length of the stack, append an item, removing the first item.
+func (s *posStack) push(v float64) {
+	s.data = append(s.data[1:s.size-1], v)
+	return
+}
+
+func (s *posStack) speed() float64 {
+
+	weights := forwardFornbergWeights(1, s.size, s.data)
+	v := float64(0)
+	for i := 0; i < s.size; i++ {
+		v += weights[i]*s.data[i]
+	}
+	return v
+}
+
+// Gives the forward finite difference coefficients in a slice for a given differentiation order m
+// and number of points n (which determines the order of accuracy).
+func forwardFornbergWeights(m int, n int, x []float64) []float64 {
+
+
+
+	delta := make([]float64, n)
+	c1 := float64(1)
+	for i:=1; i<=n; i++ {							// i -> n
+		c2 := float64(1)
+		for j:=0; j<=n-1; j++ {						// j -> v
+			c3 := x[len(x)-1] - x[j]
+			c2 := c2*c3
+			for k:=0; k<=n; k++ {					// k -> m
+				delta[k] = ((x[i]-x[len(x)-1])*delta[i-1])
+			}
+		}
+	}
+	return delta
+}
+
 
 func getDWFineSpeed() float64 {
 	// fmt.Print(getDWxFinePos())
 	if NSteps == 0 {
-		lastDWPos = getDWxFinePos()
+		// lastDWPos = getDWxFinePos()
+		DWPosStack.push(getDWxFinePos())
 	}
 	if lastTime != Time {
-		currentDWPos := getDWxFinePos()
-		lastDWSpeed = (currentDWPos - lastDWPos)/(Time - lastTime)
-		lastTime = Time
-		lastStep = NSteps
-		lastDWPos = currentDWPos
+		// currentDWPos := getDWxFinePos()
+		// lastDWSpeed = (currentDWPos - lastDWPos)/(Time - lastTime)
+		// lastTime = Time
+		// lastStep = NSteps
+		// lastDWPos = currentDWPos
+
+		DWPosStack.push(getDWxFinePos())
+
 	}
-	return lastDWSpeed
+	// return lastDWSpeed
+	return DWPosStack.speed()
 }
 
 func getDWxFinePos() float64 {
@@ -103,3 +154,9 @@ func _avg(s []float32) float32 {
 	}
 	return sum/float32(len(s))
 }
+
+func _backwardFiniteDifference1stOrder(arr []float64) {
+
+}
+
+func _backwardFiniteDifference8thOrder()

@@ -9,41 +9,68 @@ import (
 var (
 	DWFineSpeed = NewScalarValue("ext_dwfinespeed", "m/s", "Speed of domain wall", getDWFineSpeed) // Speed of DW
 	DWFinePos   = NewScalarValue("ext_dwfinepos", "m", "Position of domain wall from start", getDWxFinePos)
-	lastDWPos   float64  // Position of DW last time we checked DW speed
-	lastTime    float64  // Time at the last time we checked DW speed
-	lastDWSpeed float64  // Speed at the last time we checked DW speed
-	lastStep    int      // Step at the last time we checked DW speed
 	DWPosStack  posStack // Most recent positions of DW speed
 )
 
-// FIFO structure for storing DW positions
-type posStack struct {
-	data []float64
-	size int
+func init() {
+	DeclFunc("ext_dwfineposorder", DWFinePosOrder, "DWFinePosOrder(q)  sets the order of the DW velocity calculation to order q.")
 }
 
-// Preserving the length of the stack, append an item, removing the first item.
-func (s *posStack) push(v float64) {
-	s.data = append(s.data[1:s.size-1], v)
+// FIFO structure for storing DW positions
+type posStack struct {
+	t       []float64
+	pos     []float64
+	maxsize int
+}
+
+// DWFinePosOrder sets the order of the finite differences calculation of DW velocity
+func DWFinePosOrder(order int) {
+	DWPosStack.maxsize = order
+	return
+}
+
+func (s *posStack) size() int {
+	return len(s.t)
+}
+
+// Preserving the length of the stack, append an item, removing the first item. If the stack isn't full, just append.
+func (s *posStack) push(t float64, pos float64) {
+	if len(s.t) == s.maxsize {
+		s.t = append(s.t[1:s.maxsize], t)
+		s.pos = append(s.pos[1:s.maxsize], pos)
+	} else {
+		s.t = append(s.t, t)
+		s.pos = append(s.pos, pos)
+	}
 	return
 }
 
 func (s *posStack) speed() float64 {
 
-	weights := fornbergWeights(s.data[s.size-1], s.data, 1)
+	weights := fornbergWeights(s.lastTime(), s.t, 1)
 	v := float64(0)
-	for i := 0; i < s.size; i++ {
-		v += weights[i] * s.data[i]
+	for i := 0; i < len(s.t); i++ {
+		v += weights[i] * s.pos[i]
 	}
 	return v
 }
 
+func (s *posStack) lastTime() float64 {
+	return s.t[len(s.t)-1]
+}
+
 // Gives the forward finite difference coefficients in a slice for a given differentiation order m
-// and number of points n (which determines the order of accuracy).
+// and number of points n (which determines the order of accuracy). Maximum order of accuracy is always used.
 // Sorry for the bad code, the notation in the original papers is just as bad.
 // Fornberg, Bengt (1988), "Generation of Finite Difference Formulas on Arbitrarily Spaced Grids",
 // Mathematics of Computation, 51 (184): 699–706
 func fornbergWeights(u float64, x []float64, k int) []float64 {
+
+	// if k == 1 && len(x) == 5 {
+	// 	dx := x[1] - x[0]
+	// 	C := []float64{3 / (12 * dx), -16 / (12 * dx), 36 / (12 * dx), -48 / (12 * dx), 25 / (12 * dx)}
+	// 	return C
+	// }
 
 	n := len(x)
 	C := make([][]float64, k+1)
@@ -94,26 +121,22 @@ func min(i int, j int) int {
 
 func getDWFineSpeed() float64 {
 	// fmt.Print(getDWxFinePos())
-	if NSteps == 0 {
-		// lastDWPos = getDWxFinePos()
-		DWPosStack.push(getDWxFinePos())
-	}
-	if lastTime != Time {
-		// currentDWPos := getDWxFinePos()
-		// lastDWSpeed = (currentDWPos - lastDWPos)/(Time - lastTime)
-		// lastTime = Time
-		// lastStep = NSteps
-		// lastDWPos = currentDWPos
+	// if NSteps == 0 {
+	// 	// lastDWPos = getDWxFinePos()
+	// 	DWPosStack.push(Time, getDWxFinePos())
+	// }
+	// print("\n\nsize of stack: ", len(DWPosStack.t), ",", DWPosStack.maxsize, "\n\n")
 
-		DWPosStack.push(getDWxFinePos())
-
+	if DWPosStack.size() == 0 {
+		DWPosStack.push(Time, getDWxFinePos())
+		return 0
+	} else if DWPosStack.lastTime() != Time {
+		DWPosStack.push(Time, getDWxFinePos())
 	}
-	// return lastDWSpeed
 	return DWPosStack.speed()
 }
 
 func getDWxFinePos() float64 {
-	// print(GetShiftPos())
 	return _window2DDWxPos() + GetShiftPos()
 }
 
@@ -144,16 +167,6 @@ func _2DDWxPos(mz [][]float32) []float32 {
 }
 
 func _1DDWxPos(mz []float32) float32 {
-	// Find the DW position by finding the index of the element with z-component nearest to 0
-	// min := abs(mz[0])
-	// pos := 0
-	// for ix := range mz {
-	// 	if abs(min) > abs(mz[ix]) {
-	// 		pos = ix
-	// 		min = abs(mz[ix])
-	// 	}
-	// }
-
 	signR := _sign32(float32(ShiftMagR[Z]))
 	signL := _sign32(float32(ShiftMagL[Z]))
 

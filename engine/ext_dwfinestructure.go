@@ -30,7 +30,7 @@ func (s *posStack) push(v float64) {
 
 func (s *posStack) speed() float64 {
 
-	weights := fornbergWeights(s.data[s.size]-1, s.data, 1)
+	weights := fornbergWeights(s.data[s.size-1], s.data, 1)
 	v := float64(0)
 	for i := 0; i < s.size; i++ {
 		v += weights[i] * s.data[i]

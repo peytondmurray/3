@@ -29,6 +29,7 @@ func DWFinePosOrder(order int) {
 	return
 }
 
+// Get the current size of the stack
 func (s *posStack) size() int {
 	return len(s.t)
 }
@@ -65,12 +66,6 @@ func (s *posStack) lastTime() float64 {
 // Fornberg, Bengt (1988), "Generation of Finite Difference Formulas on Arbitrarily Spaced Grids",
 // Mathematics of Computation, 51 (184): 699–706
 func fornbergWeights(u float64, x []float64, k int) []float64 {
-
-	// if k == 1 && len(x) == 5 {
-	// 	dx := x[1] - x[0]
-	// 	C := []float64{3 / (12 * dx), -16 / (12 * dx), 36 / (12 * dx), -48 / (12 * dx), 25 / (12 * dx)}
-	// 	return C
-	// }
 
 	n := len(x)
 	C := make([][]float64, k+1)
@@ -112,6 +107,7 @@ func fornbergWeights(u float64, x []float64, k int) []float64 {
 	return C[k]
 }
 
+// Get the minimum of two integers
 func min(i int, j int) int {
 	if i < j {
 		return i
@@ -119,14 +115,8 @@ func min(i int, j int) int {
 	return j
 }
 
+// Return the speed of the DW. If the DW position hasn't been sampled enough, sample it and return 0 for the speed.
 func getDWFineSpeed() float64 {
-	// fmt.Print(getDWxFinePos())
-	// if NSteps == 0 {
-	// 	// lastDWPos = getDWxFinePos()
-	// 	DWPosStack.push(Time, getDWxFinePos())
-	// }
-	// print("\n\nsize of stack: ", len(DWPosStack.t), ",", DWPosStack.maxsize, "\n\n")
-
 	if DWPosStack.size() == 0 {
 		DWPosStack.push(Time, getDWxFinePos())
 		return 0
@@ -136,6 +126,7 @@ func getDWFineSpeed() float64 {
 	return DWPosStack.speed()
 }
 
+// The fine position of the DW is the position of the DW in the window plus the shift of the window relative to the lab
 func getDWxFinePos() float64 {
 	return _window2DDWxPos() + GetShiftPos()
 }
@@ -170,8 +161,6 @@ func _1DDWxPos(mz []float32) float32 {
 	signR := _sign32(float32(ShiftMagR[Z]))
 	signL := _sign32(float32(ShiftMagL[Z]))
 
-	// print(signL, signR)
-
 	for ix := 0; ix < len(mz)-1; ix++ {
 		if _sign32(mz[ix]) == signL && _sign32(mz[ix+1]) == signR {
 			return _interpolateZeroCrossing(mz, ix)
@@ -198,9 +187,3 @@ func _avg(s []float32) float32 {
 	}
 	return sum / float32(len(s))
 }
-
-// func _backwardFiniteDifference1stOrder(arr []float64) {
-
-// }
-
-// func _backwardFiniteDifference8thOrder()

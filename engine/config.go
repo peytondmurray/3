@@ -15,6 +15,7 @@ func init() {
 	DeclFunc("NeelSkyrmion", NeelSkyrmion, "Néél skyrmion magnetization with given charge and core polarization")
 	DeclFunc("BlochSkyrmion", BlochSkyrmion, "Bloch skyrmion magnetization with given chirality and core polarization")
 	DeclFunc("TwoDomain", TwoDomain, "Twodomain magnetization with with given magnetization in left domain, wall, and right domain")
+	DeclFunc("TwoDomainBlochLines", TwoDomainBlochLines, "Same as TwoDomain, except the wall is initialized with bloch lines.")
 	DeclFunc("VortexWall", VortexWall, "Vortex wall magnetization with given mx in left and right domain and core circulation and polarization")
 	DeclFunc("RandomMag", RandomMag, "Random magnetization")
 	DeclFunc("RandomMagSeed", RandomMagSeed, "Random magnetization with given seed")
@@ -153,6 +154,25 @@ func TwoDomain(mx1, my1, mz1, mxwall, mywall, mzwall, mx2, my2, mz2 float64) Con
 		m[X] = (1-gauss)*m[X] + gauss*mxwall
 		m[Y] = (1-gauss)*m[Y] + gauss*mywall
 		m[Z] = (1-gauss)*m[Z] + gauss*mzwall
+		return m
+	}
+}
+
+// Make a 2-domain configuration with domain wall containing bloch lines.
+func TwoDomainBlochLines(mx1, my1, mz1, mx2, my2, mz2 float64) Config {
+	ww := 2 * Mesh().CellSize()[X] // wall width in cells
+	ysize := Mesh().WorldSize()[Y]
+	return func(x, y, z float64) data.Vector {
+		var m data.Vector
+		if x < 0 {
+			m = data.Vector{mx1, my1, mz1}
+		} else {
+			m = data.Vector{mx2, my2, mz2}
+		}
+		gauss := math.Exp(-sqr64(x / ww))
+		m[X] = (1-gauss)*m[X]
+		m[Y] = (1-gauss)*m[Y] + gauss*math.Cos(2*math.Pi*y/ysize)
+		m[Z] = (1-gauss)*m[Z] + gauss*math.Sin(2*math.Pi*y/ysize)
 		return m
 	}
 }

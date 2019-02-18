@@ -3,17 +3,19 @@ package engine
 import (
 	// "log"
 	// "fmt"
-	"github.com/mumax/3/data"
+	// "github.com/mumax/3/data"
 )
 
 var (
 	DWFineSpeed = NewScalarValue("ext_dwfinespeed", "m/s", "Speed of domain wall", getDWFineSpeed) // Speed of DW
 	DWFinePos   = NewScalarValue("ext_dwfinepos", "m", "Position of domain wall from start", getDWxFinePos)
 	DWPosStack  posStack // Most recent positions of DW speed
+	SignL		int	// Store the sign of the z-component of the magnetization inserted at the Left side when sim window shfits
+	SignR		int // Store the sign of the z-component of the magnetization inserted at the Right side when sim window shfits
 )
 
 func init() {
-	DeclFunc("ext_dwfineposorder", DWFinePosOrder, "DWFinePosOrder(q)  sets the order of the DW velocity calculation to order q.")
+	DeclFunc("ext_dwfineposinit", DWFinePosInit, "DWFinePosInit(q, l, r)  sets the order of the DW velocity calculation to order q, and the sign of the magnetization which is being inserted at the left and right sides of the simulation..")
 }
 
 // FIFO structure for storing DW positions
@@ -23,9 +25,13 @@ type posStack struct {
 	maxsize int
 }
 
-// DWFinePosOrder sets the order of the finite differences calculation of DW velocity
-func DWFinePosOrder(order int) {
+// DWFinePosInit sets the order of the finite differences calculation of DW velocity
+// and the sign of the z-component of the magnetization inserted at the left and right
+// sides of the simulation as the window is shifted.
+func DWFinePosInit(order int, signL int, signR int) {
 	DWPosStack.maxsize = order
+	SignL = signL
+	SignR = signR
 	return
 }
 
@@ -47,7 +53,6 @@ func (s *posStack) push(t float64, pos float64) {
 }
 
 func (s *posStack) speed() float64 {
-
 	weights := fornbergWeights(s.lastTime(), s.t, 1)
 	v := float64(0)
 	for i := 0; i < len(s.t); i++ {
@@ -135,16 +140,6 @@ func getDWxFinePos() float64 {
 func _window2DDWxPos() float64 {
 	mz := M.Buffer().Comp(Z).HostCopy().Scalars()[0]
 	c := Mesh().CellSize()
-
-	// If ShiftMagL and ShiftMagR are not specified, use the current magnetic configuration to determine what these
-	// values should be; they are used in _1DDWxPos to find the zero crossing, where the domain wall is centered.
-	zero := data.Vector{0, 0, 0}
-	if ShiftMagL == zero || ShiftMagR == zero {
-		sign := _sign32(mz[len(mz)/2][0])
-		ShiftMagL[Z] = float64(sign)
-		ShiftMagR[Z] = -float64(sign)
-	}
-
 	pos := _avg(_2DDWxPos(mz))
 	return c[0] * float64(pos)
 }
@@ -158,11 +153,8 @@ func _2DDWxPos(mz [][]float32) []float32 {
 }
 
 func _1DDWxPos(mz []float32) float32 {
-	signR := _sign32(float32(ShiftMagR[Z]))
-	signL := _sign32(float32(ShiftMagL[Z]))
-
 	for ix := 0; ix < len(mz)-1; ix++ {
-		if _sign32(mz[ix]) == signL && _sign32(mz[ix+1]) == signR {
+		if _sign32(mz[ix]) == SignL && _sign32(mz[ix+1]) == SignR {
 			return _interpolateZeroCrossing(mz, ix)
 		}
 	}

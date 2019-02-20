@@ -170,9 +170,9 @@ func TwoDomainBlochLines(mx1, my1, mz1, mx2, my2, mz2 float64) Config {
 			m = data.Vector{mx2, my2, mz2}
 		}
 		gauss := math.Exp(-sqr64(x / ww))
-		m[X] = (1-gauss)*m[X]
+		m[X] = (1-gauss)*m[X] + gauss*math.Sin(2*math.Pi*y/ysize)
 		m[Y] = (1-gauss)*m[Y] + gauss*math.Cos(2*math.Pi*y/ysize)
-		m[Z] = (1-gauss)*m[Z] + gauss*math.Sin(2*math.Pi*y/ysize)
+		m[Z] = (1 - gauss) * m[Z]
 		return m
 	}
 }

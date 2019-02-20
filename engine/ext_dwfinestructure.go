@@ -15,7 +15,7 @@ var (
 )
 
 func init() {
-	DeclFunc("ext_dwfineposinit", DWFinePosInit, "DWFinePosInit(q, l, r)  sets the order of the DW velocity calculation to order q, and the sign of the magnetization which is being inserted at the left and right sides of the simulation..")
+	DeclFunc("ext_dwfineposinit", DWFinePosInit, "DWFinePosInit(q, l, r)  sets the order of the DW velocity calculation to order q, and the sign of the magnetization which is being inserted at the left and right sides of the simulation. (order, signL, signR)")
 }
 
 // FIFO structure for storing DW positions
@@ -65,8 +65,8 @@ func (s *posStack) lastTime() float64 {
 	return s.t[len(s.t)-1]
 }
 
-// Gives the forward finite difference coefficients in a slice for a given differentiation order m
-// and number of points n (which determines the order of accuracy). Maximum order of accuracy is always used.
+// Gives the forward finite difference coefficients in a slice for a given differentiation order k at location u,
+// using a set of successive points in x. Maximum order of accuracy is always used (determined by len(x)).
 // Sorry for the bad code, the notation in the original papers is just as bad.
 // Fornberg, Bengt (1988), "Generation of Finite Difference Formulas on Arbitrarily Spaced Grids",
 // Mathematics of Computation, 51 (184): 699–706

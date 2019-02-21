@@ -1,17 +1,15 @@
 package engine
 
-import (
-	// "log"
-	// "fmt"
-	// "github.com/mumax/3/data"
-)
+// "log"
+// "fmt"
+// "github.com/mumax/3/data"
 
 var (
 	DWFineSpeed = NewScalarValue("ext_dwfinespeed", "m/s", "Speed of domain wall", getDWFineSpeed) // Speed of DW
 	DWFinePos   = NewScalarValue("ext_dwfinepos", "m", "Position of domain wall from start", getDWxFinePos)
 	DWPosStack  posStack // Most recent positions of DW speed
-	SignL		int	// Store the sign of the z-component of the magnetization inserted at the Left side when sim window shfits
-	SignR		int // Store the sign of the z-component of the magnetization inserted at the Right side when sim window shfits
+	SignL       int      // Store the sign of the z-component of the magnetization inserted at the Left side when sim window shfits
+	SignR       int      // Store the sign of the z-component of the magnetization inserted at the Right side when sim window shfits
 )
 
 func init() {
@@ -140,25 +138,33 @@ func getDWxFinePos() float64 {
 func _window2DDWxPos() float64 {
 	mz := M.Buffer().Comp(Z).HostCopy().Scalars()[0]
 	c := Mesh().CellSize()
-	pos := _avg(_2DDWxPos(mz))
+	pos := _avg(DWFinexPos2D(mz))
 	return c[0] * float64(pos)
 }
 
-func _2DDWxPos(mz [][]float32) []float32 {
+// Find the DW position at each row of a 2D simulation space
+func DWFinexPos2D(mz [][]float32) []float32 {
 	pos := make([]float32, len(mz))
 	for iy := range mz {
-		pos[iy] = _1DDWxPos(mz[iy])
+		pos[iy] = DWFinexPos1D(mz[iy])
 	}
 	return pos
 }
 
-func _1DDWxPos(mz []float32) float32 {
+// Find the DW position along a 1D slice of the simulation region, interpolating across the zero crossing.
+func DWFinexPos1D(mz []float32) float32 {
+	return _interpolateZeroCrossing(mz, ZeroCrossing(mz))
+	panic("Can't find domain wall position.")
+}
+
+// Find the index of the 1D slice where the zero crossing of the Mz component occurs.
+func ZeroCrossing(mz []float32) int {
 	for ix := 0; ix < len(mz)-1; ix++ {
 		if _sign32(mz[ix]) == SignL && _sign32(mz[ix+1]) == SignR {
-			return _interpolateZeroCrossing(mz, ix)
+			return ix
 		}
 	}
-	panic("Can't find domain wall position.")
+	panic("Can't find domain wall position")
 }
 
 func _interpolateZeroCrossing(mz []float32, i int) float32 {

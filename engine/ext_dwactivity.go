@@ -73,6 +73,18 @@ func (s *activityStack) cacheAzxy() {
 	return
 }
 
+// Calculate the change in angle for two angles. This only makes sense to use if the input angles range from 0 to 2pi,
+// so only use this for phi coordinate, NOT theta.
+func deltaAngle(a, b float64) float64 {
+	dA := a - b
+	if dA < -math.Pi {
+		return 2*math.Pi + dA
+	} else if dA > math.Pi {
+		return 2*math.Pi - dA
+	}
+	return dA
+}
+
 func getBandIndices(mz []float32, width int, xmin int, xmax int) (int, int) {
 	ix := ZeroCrossing(mz)
 	iMin := _max(ix-width, xmin)
@@ -88,6 +100,7 @@ func calcAz(thetaNew [][][]float64, thetaOld [][][]float64, dt float64, width in
 	for k := 0; k < n[Z]; k++ {
 		for j := 0; j < n[Y]; j++ {
 			iMin, iMax := getBandIndices(m[Z][k][j], width, 0, n[X])
+			// print(fmt.Sprintf("%i\t%i\n", iMin, iMax))
 			for i := iMin; i <= iMax; i++ {
 				ret += (thetaNew[k][j][i] - thetaOld[k][j][i]) / dt
 			}
@@ -106,33 +119,17 @@ func calcAxy(phiNew [][][]float64, phiOld [][][]float64, dt float64, width int, 
 			iMin, iMax := getBandIndices(m[Z][k][j], width, 0, n[X])
 			for i := iMin; i < iMax; i++ {
 				_magnitude := inPlaneMagnitude(m[X][k][j][i], m[Y][k][j][i])
-				ret += (phiNew[k][j][i] - phiOld[k][j][i]) * _magnitude / dt
+				ret += deltaAngle(phiNew[k][j][i], phiOld[k][j][i]) * _magnitude / dt
 			}
 		}
 	}
 	return ret
 }
 
+// Get in-plane magnitude
 func inPlaneMagnitude(mx float32, my float32) float64 {
-	return math.Pow(float64(mx*mx+my*my), 0.5)
+	return math.Sqrt(float64(mx*mx+my*my))
 }
-
-// func maskDW(m [3][][][]float32, width int) {
-// 	n := MeshSize()
-
-// 	for k := 0; k < n[Z]; k++ {
-// 		for j := 0; j < n[Y]; j++ {
-// 			ix := ZeroCrossing(m[Z][k][j])
-// 			iMin := _max(ix-width, 0)
-// 			iMax := _min(ix+width, n[X])
-// 			for comp := 0; comp < 3; comp++ {
-// 				_maskDW1D(m[comp][k][j], iMin, iMax)
-// 			}
-// 		}
-// 	}
-
-// 	return
-// }
 
 // Integer minimum
 func _min(a int, b int) int {
@@ -148,26 +145,6 @@ func _max(a int, b int) int {
 		return a
 	}
 	return b
-}
-
-// Set anything in m outside of the indices [iMin, iMax] to zero
-// func _maskDW1D(m []float32, iMin int, iMax int) {
-
-// 	for i := 0; i < iMin; i++ {
-// 		m[i] = 0
-// 	}
-// 	for i := iMax; i < len(m); i++ {
-// 		m[i] = 0
-// 	}
-// 	return
-// }
-
-func phi(mx float32, my float32) float64 {
-	return math.Atan2(float64(my), float64(mx))
-}
-
-func theta(mz float32) float64 {
-	return math.Acos(float64(mz))
 }
 
 func phiTheta(m [3][][][]float32) ([][][]float64, [][][]float64) {
@@ -191,4 +168,12 @@ func phiTheta(m [3][][][]float32) ([][][]float64, [][][]float64) {
 		}
 	}
 	return _phi, _theta
+}
+
+func phi(mx float32, my float32) float64 {
+	return math.Atan2(float64(my), float64(mx))
+}
+
+func theta(mz float32) float64 {
+	return math.Acos(float64(mz))
 }

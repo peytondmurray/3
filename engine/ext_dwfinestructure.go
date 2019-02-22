@@ -51,7 +51,7 @@ func (s *posStack) push(t float64, pos float64) {
 }
 
 func (s *posStack) speed() float64 {
-	weights := fornbergWeights(s.lastTime(), s.t, 1)
+	weights := FornbergWeights(s.lastTime(), s.t, 1)
 	v := float64(0)
 	for i := 0; i < len(s.t); i++ {
 		v += weights[i] * s.pos[i]
@@ -68,7 +68,7 @@ func (s *posStack) lastTime() float64 {
 // Sorry for the bad code, the notation in the original papers is just as bad.
 // Fornberg, Bengt (1988), "Generation of Finite Difference Formulas on Arbitrarily Spaced Grids",
 // Mathematics of Computation, 51 (184): 699–706
-func fornbergWeights(u float64, x []float64, k int) []float64 {
+func FornbergWeights(u float64, x []float64, k int) []float64 {
 
 	n := len(x)
 	C := make([][]float64, k+1)

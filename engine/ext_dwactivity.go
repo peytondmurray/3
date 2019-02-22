@@ -59,11 +59,10 @@ func getAxy() float64 {
 
 func (s *activityStack) cacheAzxy() {
 	_m := M.Buffer().HostCopy().Vectors()
-	maskDW(_m, s.maskWidth)
 	_phi, _theta := phiTheta(_m)
 	if s.initialized {
-		s._AzCache = calcAz(_theta, s.theta, Time - s.t)
-		s._AxyCache = calcAxy(_phi, s.phi, Time - s.t, _m)
+		s._AzCache = calcAz(_theta, s.theta, Time - s.t, s.maskWidth, _m)
+		s._AxyCache = calcAxy(_phi, s.phi, Time - s.t, s.maskWidth, _m)
 	} else {
 		s._AzCache = 0
 		s._AxyCache = 0
@@ -74,14 +73,22 @@ func (s *activityStack) cacheAzxy() {
 	return
 }
 
-func calcAz(thetaNew [][][]float64, thetaOld [][][]float64, dt float64) float64 {
+func getBandIndices(mz []float32, width int, xmin int, xmax int) (int, int) {
+	ix := ZeroCrossing(mz)
+	iMin := _max(ix-width, xmin)
+	iMax := _min(ix+width, xmax)
+	return iMin, iMax
+}
+
+func calcAz(thetaNew [][][]float64, thetaOld [][][]float64, dt float64, width int, m [3][][][]float32) float64 {
 
 	n := MeshSize()
 	ret := float64(0)
 
 	for k := 0; k < n[Z]; k++ {
 		for j := 0; j < n[Y]; j++ {
-			for i := 0; i < n[X]; i++ {
+			iMin, iMax := getBandIndices(m[Z][k][j], width, 0, n[X])
+			for i := iMin; i <= iMax; i++ {
 				ret += (thetaNew[k][j][i] - thetaOld[k][j][i]) / dt
 			}
 		}
@@ -89,15 +96,16 @@ func calcAz(thetaNew [][][]float64, thetaOld [][][]float64, dt float64) float64 
 	return ret
 }
 
-func calcAxy(phiNew [][][]float64, phiOld [][][]float64, dt float64, mNew [3][][][]float32) float64 {
+func calcAxy(phiNew [][][]float64, phiOld [][][]float64, dt float64, width int, m [3][][][]float32) float64 {
 
 	n := MeshSize()
 	ret := float64(0)
 
 	for k := 0; k < n[Z]; k++ {
 		for j := 0; j < n[Y]; j++ {
-			for i := 0; i < n[X]; i++ {
-				_magnitude := inPlaneMagnitude(mNew[X][k][j][i], mNew[Y][k][j][i])
+			iMin, iMax := getBandIndices(m[Z][k][j], width, 0, n[X])
+			for i := iMin; i < iMax; i++ {
+				_magnitude := inPlaneMagnitude(m[X][k][j][i], m[Y][k][j][i])
 				ret += (phiNew[k][j][i] - phiOld[k][j][i]) * _magnitude / dt
 			}
 		}
@@ -109,22 +117,22 @@ func inPlaneMagnitude(mx float32, my float32) float64 {
 	return math.Pow(float64(mx*mx+my*my), 0.5)
 }
 
-func maskDW(m [3][][][]float32, width int) {
-	n := MeshSize()
+// func maskDW(m [3][][][]float32, width int) {
+// 	n := MeshSize()
 
-	for k := 0; k < n[Z]; k++ {
-		for j := 0; j < n[Y]; j++ {
-			ix := ZeroCrossing(m[Z][k][j])
-			iMin := _max(ix-width, 0)
-			iMax := _min(ix+width, n[X])
-			for comp := 0; comp < 3; comp++ {
-				_maskDW1D(m[comp][k][j], iMin, iMax)
-			}
-		}
-	}
+// 	for k := 0; k < n[Z]; k++ {
+// 		for j := 0; j < n[Y]; j++ {
+// 			ix := ZeroCrossing(m[Z][k][j])
+// 			iMin := _max(ix-width, 0)
+// 			iMax := _min(ix+width, n[X])
+// 			for comp := 0; comp < 3; comp++ {
+// 				_maskDW1D(m[comp][k][j], iMin, iMax)
+// 			}
+// 		}
+// 	}
 
-	return
-}
+// 	return
+// }
 
 // Integer minimum
 func _min(a int, b int) int {
@@ -143,16 +151,16 @@ func _max(a int, b int) int {
 }
 
 // Set anything in m outside of the indices [iMin, iMax] to zero
-func _maskDW1D(m []float32, iMin int, iMax int) {
+// func _maskDW1D(m []float32, iMin int, iMax int) {
 
-	for i := 0; i < iMin; i++ {
-		m[i] = 0
-	}
-	for i := iMax; i < len(m); i++ {
-		m[i] = 0
-	}
-	return
-}
+// 	for i := 0; i < iMin; i++ {
+// 		m[i] = 0
+// 	}
+// 	for i := iMax; i < len(m); i++ {
+// 		m[i] = 0
+// 	}
+// 	return
+// }
 
 func phi(mx float32, my float32) float64 {
 	return math.Atan2(float64(my), float64(mx))

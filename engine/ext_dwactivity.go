@@ -21,6 +21,7 @@ func init() {
 // of the domain wall are included in the domain wall activity
 func DWActivityInit(w int) {
 	DWMonitor.maskWidth = w
+	DWMonitor.initialized = false
 	return
 }
 
@@ -31,6 +32,7 @@ type activityStack struct {
 	maskWidth int
 	_AzCache  float64
 	_AxyCache float64
+	initialized bool
 }
 
 func (s *activityStack) Az() float64 {
@@ -59,15 +61,22 @@ func (s *activityStack) cacheAzxy() {
 	_m := M.Buffer().HostCopy().Vectors()
 	maskDW(_m, s.maskWidth)
 	_phi, _theta := phiTheta(_m)
-	s._AzCache = calcAz(_theta, s.theta, Time, s.t)
-	s._AxyCache = calcAxy(_phi, s.phi, Time, s.t, _m)
+	if s.initialized {
+		s._AzCache = calcAz(_theta, s.theta, Time - s.t)
+		s._AxyCache = calcAxy(_phi, s.phi, Time - s.t, _m)
+	} else {
+		s._AzCache = 0
+		s._AxyCache = 0
+		s.initialized = true
+	}
+	s.phi = _phi
+	s.theta = _theta
 	return
 }
 
-func calcAz(thetaNew [][][]float64, thetaOld [][][]float64, tNew float64, tOld float64) float64 {
+func calcAz(thetaNew [][][]float64, thetaOld [][][]float64, dt float64) float64 {
 
 	n := MeshSize()
-	dt := tNew - tOld
 	ret := float64(0)
 
 	for k := 0; k < n[Z]; k++ {
@@ -80,10 +89,9 @@ func calcAz(thetaNew [][][]float64, thetaOld [][][]float64, tNew float64, tOld f
 	return ret
 }
 
-func calcAxy(phiNew [][][]float64, phiOld [][][]float64, tNew float64, tOld float64, mNew [3][][][]float32) float64 {
+func calcAxy(phiNew [][][]float64, phiOld [][][]float64, dt float64, mNew [3][][][]float32) float64 {
 
 	n := MeshSize()
-	dt := tNew - tOld
 	ret := float64(0)
 
 	for k := 0; k < n[Z]; k++ {

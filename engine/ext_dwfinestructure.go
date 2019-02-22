@@ -18,96 +18,35 @@ func init() {
 
 // FIFO structure for storing DW positions
 type posStack struct {
-	t       []float64
-	pos     []float64
-	maxsize int
+	t		[2]float64
+	pos     [2]float64
+	initialized bool
 }
 
-// DWFinePosInit sets the order of the finite differences calculation of DW velocity
-// and the sign of the z-component of the magnetization inserted at the left and right
-// sides of the simulation as the window is shifted.
-func DWFinePosInit(order int, signL int, signR int) {
-	DWPosStack.maxsize = order
+func DWFinePosInit(signL int, signR int) {
 	SignL = signL
 	SignR = signR
+	DWPosStack.initialized = false
 	return
-}
-
-// Get the current size of the stack
-func (s *posStack) size() int {
-	return len(s.t)
 }
 
 // Preserving the length of the stack, append an item, removing the first item. If the stack isn't full, just append.
 func (s *posStack) push(t float64, pos float64) {
-	if len(s.t) == s.maxsize {
-		s.t = append(s.t[1:s.maxsize], t)
-		s.pos = append(s.pos[1:s.maxsize], pos)
-	} else {
-		s.t = append(s.t, t)
-		s.pos = append(s.pos, pos)
-	}
+
+	s.t[0] = s.t[1]
+	s.t[1] = t
+
+	s.pos[0] = s.pos[1]
+	s.pos[1] = pos
 	return
 }
 
 func (s *posStack) speed() float64 {
-	weights := FornbergWeights(s.lastTime(), s.t, 1)
-	v := float64(0)
-	for i := 0; i < len(s.t); i++ {
-		v += weights[i] * s.pos[i]
-	}
-	return v
+	return (s.pos[1]-s.pos[0])/(s.t[1]-s.t[0])
 }
 
 func (s *posStack) lastTime() float64 {
-	return s.t[len(s.t)-1]
-}
-
-// Gives the forward finite difference coefficients in a slice for a given differentiation order k at location u,
-// using a set of successive points in x. Maximum order of accuracy is always used (determined by len(x)).
-// Sorry for the bad code, the notation in the original papers is just as bad.
-// Fornberg, Bengt (1988), "Generation of Finite Difference Formulas on Arbitrarily Spaced Grids",
-// Mathematics of Computation, 51 (184): 699–706
-func FornbergWeights(u float64, x []float64, k int) []float64 {
-
-	n := len(x)
-	C := make([][]float64, k+1)
-	for i := 0; i < k+1; i++ {
-		C[i] = make([]float64, n)
-	}
-
-	c1 := float64(1)
-	c2 := float64(1)
-	c3 := float64(0)
-	c4 := x[1] - u
-	c5 := float64(0)
-	C[0][0] = 1.0
-
-	for i := 0; i < n; i++ {
-		mn := min(i, k)
-		c2 = float64(1)
-		c5 = c4
-		c4 = x[i] - u
-
-		for j := 0; j < i; j++ {
-			c3 = x[i] - x[j]
-			c2 *= c3
-
-			if j == i-1 {
-				for s := mn; s > 0; s-- {
-					C[s][i] = c1 * (float64(s)*C[s-1][i-1] - c5*C[s][i-1]) / c2
-				}
-				C[0][i] = -c1 * c5 * C[0][i-1] / c2
-			}
-			for s := mn; s > 0; s-- {
-				C[s][j] = (c4*C[s][j] - float64(s)*C[s-1][j]) / c3
-			}
-			C[0][j] = c4 * C[0][j] / c3
-		}
-		c1 = c2
-	}
-
-	return C[k]
+	return s.t[1]
 }
 
 // Get the minimum of two integers
@@ -120,7 +59,8 @@ func min(i int, j int) int {
 
 // Return the speed of the DW. If the DW position hasn't been sampled enough, sample it and return 0 for the speed.
 func getDWFineSpeed() float64 {
-	if DWPosStack.size() == 0 {
+	if !DWPosStack.initialized {
+		DWPosStack.initialized = true
 		DWPosStack.push(Time, getDWxFinePos())
 		return 0
 	} else if DWPosStack.lastTime() != Time {

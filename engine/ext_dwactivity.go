@@ -15,6 +15,8 @@ var (
 
 func init() {
 	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(a, w) sets the order of the DW activity calculation to a and the mask width to w.")
+	DeclFunc("ext_getphi", getPhi, "Get the current phi angle as a slice.")
+	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
 }
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
@@ -26,12 +28,12 @@ func DWActivityInit(w int) {
 }
 
 type activityStack struct {
-	phi       [][][]float64
-	theta     [][][]float64
-	t         float64
-	maskWidth int
-	_AzCache  float64
-	_AxyCache float64
+	phi         [][][]float64
+	theta       [][][]float64
+	t           float64
+	maskWidth   int
+	_AzCache    float64
+	_AxyCache   float64
 	initialized bool
 }
 
@@ -61,8 +63,8 @@ func (s *activityStack) cacheAzxy() {
 	_m := M.Buffer().HostCopy().Vectors()
 	_phi, _theta := phiTheta(_m)
 	if s.initialized {
-		s._AzCache = calcAz(_theta, s.theta, Time - s.t, s.maskWidth, _m)
-		s._AxyCache = calcAxy(_phi, s.phi, Time - s.t, s.maskWidth, _m)
+		s._AzCache = calcAz(_theta, s.theta, Time-s.t, s.maskWidth, _m)
+		s._AxyCache = calcAxy(_phi, s.phi, Time-s.t, s.maskWidth, _m)
 	} else {
 		s._AzCache = 0
 		s._AxyCache = 0
@@ -128,7 +130,7 @@ func calcAxy(phiNew [][][]float64, phiOld [][][]float64, dt float64, width int, 
 
 // Get in-plane magnitude
 func inPlaneMagnitude(mx float32, my float32) float64 {
-	return math.Sqrt(float64(mx*mx+my*my))
+	return math.Sqrt(float64(mx*mx + my*my))
 }
 
 // Integer minimum
@@ -176,4 +178,12 @@ func phi(mx float32, my float32) float64 {
 
 func theta(mz float32) float64 {
 	return math.Acos(float64(mz))
+}
+
+func getPhi() [][][]float64 {
+	return DWMonitor.phi
+}
+
+func getTheta() [][][]float64 {
+	return DWMonitor.theta
 }

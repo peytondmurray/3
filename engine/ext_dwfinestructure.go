@@ -18,8 +18,8 @@ func init() {
 
 // FIFO structure for storing DW positions
 type posStack struct {
-	t		[2]float64
-	pos     [2]float64
+	t           [2]float64
+	pos         [2]float64
 	initialized bool
 }
 
@@ -42,7 +42,7 @@ func (s *posStack) push(t float64, pos float64) {
 }
 
 func (s *posStack) speed() float64 {
-	return (s.pos[1]-s.pos[0])/(s.t[1]-s.t[0])
+	return (s.pos[1] - s.pos[0]) / (s.t[1] - s.t[0])
 }
 
 func (s *posStack) lastTime() float64 {
@@ -69,17 +69,24 @@ func getDWFineSpeed() float64 {
 	return DWPosStack.speed()
 }
 
-// The fine position of the DW is the position of the DW in the window plus the shift of the window relative to the lab
+// The fine position of the DW is the average position of the DW along its length
 func getDWxFinePos() float64 {
-	return _window2DDWxPos() + GetShiftPos()
+	return _avg64(SliceDWxFinePos2D())
 }
 
-// _window2DDWxPos finds the position of the domain wall within the simulation window
-func _window2DDWxPos() float64 {
+// The fine position of the DW for each value of Y is the shift position of the simulation plus the location of the
+// DW in the simulation region
+func SliceDWxFinePos2D() []float64 {
 	mz := M.Buffer().Comp(Z).HostCopy().Scalars()[0]
 	c := Mesh().CellSize()
-	pos := _avg(DWFinexPos2D(mz))
-	return c[0] * float64(pos)
+	pos1D := DWFinexPos2D(mz)
+	windowPos := GetShiftPos()
+
+	ret := make([]float64, len(pos1D))
+	for i := 0; i < len(pos1D); i++ {
+		ret[i] = float64(pos1D[i])*c[X] + windowPos
+	}
+	return ret
 }
 
 // Find the DW position at each row of a 2D simulation space
@@ -107,6 +114,8 @@ func ZeroCrossing(mz []float32) int {
 	panic("Can't find domain wall position")
 }
 
+// Interpolate the index of the 1D slice wehre the zero crossing of the Mz component occurs. Returns a float32, so
+// you can't use this for indexing an array at the zero crossing point.
 func _interpolateZeroCrossing(mz []float32, i int) float32 {
 	return float32(i) - (mz[i] / (mz[i+1] - mz[i]))
 }
@@ -118,10 +127,10 @@ func _sign32(f float32) int {
 	return -1
 }
 
-func _avg(s []float32) float32 {
-	sum := float32(0)
+func _avg64(s []float64) float64 {
+	sum := 0.0
 	for v := range s {
 		sum += s[v]
 	}
-	return sum / float32(len(s))
+	return sum / float64(len(s))
 }

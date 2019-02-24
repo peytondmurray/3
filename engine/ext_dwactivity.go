@@ -79,16 +79,22 @@ func (s *activityStack) push() {
 	s.windowpos[0] = s.windowpos[1]
 
 	// Update the DW and window positions; put new values of the angles into the new slots.
-	s.dwpos[1] = GetIntDWPos()
-	s.windowpos[1] = GetIntWindowPos()
-	_m := magnetizationInBand(s.dwpos[1], s.maskWidth, s.WindowShift(), s.DWShift())
-	s.rxy[1], s.phi[1], s.theta[1] = rxyPhiTheta(_m)
-	s.t[1] = Time
-
 	if s.initialized {
+		s.dwpos[1] = GetIntDWPos()
+		s.windowpos[1] = GetIntWindowPos()
+		_m := magnetizationInBand(s.dwpos[1], s.maskWidth, s.WindowShift(), s.DWShift())
+		s.rxy[1], s.phi[1], s.theta[1] = rxyPhiTheta(_m)
+		s.t[1] = Time
+
 		s._AzCache = calcAz(s.theta[1], s.theta[0], s.t[1]-s.t[0])
 		s._AxyCache = calcAxy(s.rxy[1], s.phi[1], s.phi[0], s.t[1]-s.t[0])
 	} else {
+		s.dwpos[1] = GetIntDWPos()
+		s.windowpos[1] = GetIntWindowPos()
+		_m := magnetizationInBand(s.dwpos[1], s.maskWidth, 0, _zeroDWShift())
+		s.rxy[1], s.phi[1], s.theta[1] = rxyPhiTheta(_m)
+		s.t[1] = Time
+
 		s.initialized = true
 	}
 	return
@@ -154,6 +160,10 @@ func _max(a int, b int) int {
 
 // Return the magnetization within the region near the DW in (x, y, z, component) order.
 func magnetizationInBand(dwpos [][]int, width int, windowShift int, dwShift [][]int) [][][][3]float64 {
+
+	// Latency between cpu and gpu is so giant that copying the entire array over costs less time than getting
+	// individual cells using M.GetCell(k, j, i)
+	mvectors := M.Buffer().HostCopy().Vectors()
 	n := MeshSize()
 
 	m := make([][][][3]float64, n[Z])
@@ -165,9 +175,10 @@ func magnetizationInBand(dwpos [][]int, width int, windowShift int, dwShift [][]
 			iMin := dwpos[i][j] - width - windowShift - dwShift[i][j]
 			iMax := dwpos[i][j] + 1 + width - windowShift - dwShift[i][j]
 
+			im := 0
 			for k := iMin; k < iMax; k++ {
-				_m := M.GetCell(k, j, i)
-				m[i][j][k] = [3]float64{_m[X], _m[Y], _m[Z]}
+				m[i][j][im] = [3]float64{float64(mvectors[X][i][j][k]), float64(mvectors[Y][i][j][k]), float64(mvectors[Z][i][j][k])}
+				im++
 			}
 		}
 	}
@@ -336,4 +347,14 @@ func GetIntWindowPos() int {
 	c := Mesh().CellSize()
 	windowPos := GetShiftPos()
 	return IntRound(windowPos / c[Y])
+}
+
+// Generate a zeroed slice for initializing the DW shift
+func _zeroDWShift() [][]int {
+	n := MeshSize()
+	ret := make([][]int, n[Z])
+	for i := 0; i < n[Z]; i++ {
+		ret[i] = make([]int, n[Y])
+	}
+	return ret
 }

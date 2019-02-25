@@ -7,6 +7,7 @@ import (
 
 var (
 	saveXYZIndex int // Stores the number of the next file to be written. Increments each time a file is written.
+	saveDWIndex int
 )
 
 func init() {
@@ -51,7 +52,6 @@ func saveVTK(s [][][]float64, name string) {
 	}
 
 	f.WriteString(fmt.Sprintf("\nPOINT_DATA %d\n", ncells))
-
 	f.WriteString(fmt.Sprintf("SCALARS %s float\n", name))
 	f.WriteString("LOOKUP_TABLE default\n")
 	for k := 0; k < n[Z]; k++ {

@@ -18,7 +18,7 @@ func init() {
 	DeclFunc("ext_getphi", getPhi, "Get the current phi angle as a slice.")
 	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getWindowShift", GetWindowShift, "Get the shift in the window since last step.")
-
+	DeclFunc("ext_activitydwpos", GetActivityDWPos, "Get the domain wall position from the activityStack")
 }
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
@@ -124,7 +124,7 @@ func calcAz(thetaNew, thetaOld [][][]float64, dt float64) float64 {
 
 	for k := 0; k < n[Z]; k++ {
 		for j := 0; j < n[Y]; j++ {
-			for i := 0; i <= len(thetaNew[i][j]); i++ {
+			for i := 0; i < len(thetaNew[k][j]); i++ {
 				ret += deltaAngle(thetaNew[k][j][i], thetaOld[k][j][i]) / dt
 			}
 		}
@@ -139,7 +139,7 @@ func calcAxy(rxyNew, rxyOld, phiNew, phiOld [][][]float64, dt float64) float64 {
 
 	for k := 0; k < n[Z]; k++ {
 		for j := 0; j < n[Y]; j++ {
-			for i := 0; i < len(phiNew[i][j]); i++ {
+			for i := 0; i < len(phiNew[k][j]); i++ {
 				ret += deltaAngle(phiNew[k][j][i], phiOld[k][j][i]) * (rxyNew[k][j][i] + rxyOld[k][j][i]) * 0.5 / dt
 			}
 		}
@@ -264,4 +264,27 @@ func _zeroDWShift() [][]int {
 
 func GetWindowShift() int {
 	return DWMonitor.WindowShift()
+}
+
+func GetActivityDWPos() [][][]float64 {
+
+	n := MeshSize()
+	pos := DWMonitor.dwpos[1]
+	width := DWMonitor.maskWidth
+
+	ret := make([][][]float64, n[Z])
+	for i:=0; i<n[Z]; i++ {
+		ret[i] = make([][]float64, n[Y])
+		for j:=0; j<n[Y]; j++ {
+			ret[i][j] = make([]float64, n[X])
+			for k:=0; k<n[X]; k++ {
+				if k > pos[i][j]-width && k < pos[i][j]+width+1 {
+					ret[i][j][k] = 1.0
+				} else {
+					ret[i][j][k] = 0.0
+				}
+			}
+		}
+	}
+	return ret
 }

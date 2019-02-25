@@ -19,8 +19,6 @@ func init() {
 	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getphidot", getPhiDot, "Get the current phi angle as a slice.")
 	DeclFunc("ext_getthetadot", getThetaDot, "Get the current theta angle as a slice.")
-	// DeclFunc("ext_getWindowShift", GetWindowShift, "Get the shift in the window since last step.")
-	// DeclFunc("ext_activitydwpos", GetActivityDWPos, "Get the domain wall position from the activityStack")
 }
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
@@ -155,40 +153,6 @@ func calcAz(thetaDot [][][]float64, dwpos [][]int, maskWidth int) float64 {
 	return ret
 }
 
-func rxyPhiThetaBand(_dwpos [][]int, width int, windowShift int) ([][][]float64, [][][]float64, [][][]float64) {
-
-	n := MeshSize()
-	m := M.Buffer().HostCopy().Vectors()
-
-	_rxy := make([][][]float64, n[Z])
-	_phi := make([][][]float64, n[Z])
-	_theta := make([][][]float64, n[Z])
-
-	for k := 0; k < n[Z]; k++ {
-		_rxy[k] = make([][]float64, n[Y])
-		_phi[k] = make([][]float64, n[Y])
-		_theta[k] = make([][]float64, n[Y])
-
-		for j := 0; j < n[Y]; j++ {
-			_rxy[k][j] = make([]float64, 2*width+1)
-			_phi[k][j] = make([]float64, 2*width+1)
-			_theta[k][j] = make([]float64, 2*width+1)
-
-			iMin := _dwpos[k][j] - width - windowShift
-			iMax := _dwpos[k][j] + 1 + width - windowShift
-
-			im := 0
-			for i := iMin; i < iMax; i++ {
-				_rxy[k][j][im] = rxy(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-				_phi[k][j][im] = phi(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-				_theta[k][j][im] = theta(float64(m[Z][k][j][i]))
-				im++
-			}
-		}
-	}
-	return _rxy, _phi, _theta
-}
-
 func rxyPhiTheta() ([][][]float64, [][][]float64, [][][]float64) {
 
 	n := MeshSize()
@@ -232,12 +196,10 @@ func theta(mz float64) float64 {
 
 func getPhi() [][][]float64 {
 	return DWMonitor.phi
-	// return DWMonitor.phi[1]
 }
 
 func getTheta() [][][]float64 {
 	return DWMonitor.theta
-	// return DWMonitor.theta[1]
 }
 
 func IntRound(x float64) int {
@@ -275,16 +237,6 @@ func GetIntWindowPos() int {
 	return IntRound(windowPos / c[Y])
 }
 
-// Generate a zeroed slice for initializing the DW shift
-func _zeroDWShift() [][]int {
-	n := MeshSize()
-	ret := make([][]int, n[Z])
-	for i := 0; i < n[Z]; i++ {
-		ret[i] = make([]int, n[Y])
-	}
-	return ret
-}
-
 func angularVel(aNew, aOld [][][]float64, windowposNew, windowposOld int, tNew, tOld float64) [][][]float64 {
 
 	shift := windowposNew - windowposOld
@@ -317,6 +269,7 @@ func angularVel(aNew, aOld [][][]float64, windowposNew, windowposOld int, tNew, 
 	return ret
 }
 
+// Make a slice the same size as the simulation, initialized with zeros.
 func ZeroWorld() [][][]float64 {
 
 	n := MeshSize()
@@ -342,6 +295,7 @@ func getThetaDot() [][][]float64 {
 	return DWMonitor.thetadot
 }
 
+// Find the average of old and new rxy slices.
 func averageRxy(rxyNew, rxyOld [][][]float64) [][][]float64 {
 	n := MeshSize()
 

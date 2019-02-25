@@ -7,7 +7,6 @@ import (
 
 var (
 	saveXYZIndex int // Stores the number of the next file to be written. Increments each time a file is written.
-	saveDWIndex int
 )
 
 func init() {

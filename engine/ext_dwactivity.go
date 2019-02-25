@@ -17,8 +17,8 @@ func init() {
 	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(a, w) sets the order of the DW activity calculation to a and the mask width to w.")
 	DeclFunc("ext_getphi", getPhi, "Get the current phi angle as a slice.")
 	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
-	DeclFunc("ext_dphidt", getDPhiDt, "Find dphi/dt")
-	DeclFunc("ext_dthetadt", getDThetaDt, "Find dtheta/dt")
+	DeclFunc("ext_getWindowShift", GetWindowShift, "Get the shift in the window since last step.")
+
 }
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
@@ -80,21 +80,26 @@ func (s *activityStack) push() {
 
 	// Update the DW and window positions; put new values of the angles into the new slots.
 	if s.initialized {
-		s.dwpos[1] = GetIntDWPos()
 		s.windowpos[1] = GetIntWindowPos()
-		_m := magnetizationInBand(s.dwpos[1], s.maskWidth, s.WindowShift(), s.DWShift())
-		s.rxy[1], s.phi[1], s.theta[1] = rxyPhiTheta(_m)
+		s.dwpos[1] = GetIntDWPos()
+
+		// Get r, phi, theta corresponding to the previous domain wall configuration. These in principle will have
+		// evolved in time since the last time this function was called, so while these should be the same spins as
+		// were stored in the last time step, they won't be pointing in the same direction.
+		s.rxy[1], s.phi[1], s.theta[1] = rxyPhiThetaBand(s.dwpos[0], s.maskWidth, s.WindowShift())
 		s.t[1] = Time
 
 		s._AzCache = calcAz(s.theta[1], s.theta[0], s.t[1]-s.t[0])
-		s._AxyCache = calcAxy(s.rxy[1], s.phi[1], s.phi[0], s.t[1]-s.t[0])
-	} else {
-		s.dwpos[1] = GetIntDWPos()
-		s.windowpos[1] = GetIntWindowPos()
-		_m := magnetizationInBand(s.dwpos[1], s.maskWidth, 0, _zeroDWShift())
-		s.rxy[1], s.phi[1], s.theta[1] = rxyPhiTheta(_m)
-		s.t[1] = Time
+		s._AxyCache = calcAxy(s.rxy[1], s.rxy[0], s.phi[1], s.phi[0], s.t[1]-s.t[0])
 
+		// Get r, phi, theta from the new domain wall configuration (therefore no window correction necessary).
+		s.rxy[0], s.phi[0], s.theta[0] = rxyPhiThetaBand(s.dwpos[1], s.maskWidth, 0)
+
+	} else {
+		s.windowpos[1] = GetIntWindowPos()
+		s.dwpos[1] = GetIntDWPos()
+		s.rxy[1], s.phi[1], s.theta[1] = rxyPhiThetaBand(s.dwpos[1], s.maskWidth, 0)
+		s.t[1] = Time
 		s.initialized = true
 	}
 	return
@@ -119,7 +124,7 @@ func calcAz(thetaNew, thetaOld [][][]float64, dt float64) float64 {
 
 	for k := 0; k < n[Z]; k++ {
 		for j := 0; j < n[Y]; j++ {
-			for i := 0; i <= len(thetaNew); i++ {
+			for i := 0; i <= len(thetaNew[i][j]); i++ {
 				ret += deltaAngle(thetaNew[k][j][i], thetaOld[k][j][i]) / dt
 			}
 		}
@@ -127,86 +132,49 @@ func calcAz(thetaNew, thetaOld [][][]float64, dt float64) float64 {
 	return ret
 }
 
-func calcAxy(rxyNew, phiNew, phiOld [][][]float64, dt float64) float64 {
+func calcAxy(rxyNew, rxyOld, phiNew, phiOld [][][]float64, dt float64) float64 {
 
 	n := MeshSize()
 	ret := float64(0)
 
 	for k := 0; k < n[Z]; k++ {
 		for j := 0; j < n[Y]; j++ {
-			for i := 0; i < len(phiNew); i++ {
-				ret += deltaAngle(phiNew[k][j][i], phiOld[k][j][i]) * rxyNew[k][j][i] / dt
+			for i := 0; i < len(phiNew[i][j]); i++ {
+				ret += deltaAngle(phiNew[k][j][i], phiOld[k][j][i]) * (rxyNew[k][j][i] + rxyOld[k][j][i]) * 0.5 / dt
 			}
 		}
 	}
 	return ret
 }
 
-// Integer minimum
-func _min(a int, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+func rxyPhiThetaBand(_dwpos [][]int, width int, windowShift int) ([][][]float64, [][][]float64, [][][]float64) {
 
-// Integer maximum
-func _max(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// Return the magnetization within the region near the DW in (x, y, z, component) order.
-func magnetizationInBand(dwpos [][]int, width int, windowShift int, dwShift [][]int) [][][][3]float64 {
-
-	// Latency between cpu and gpu is so giant that copying the entire array over costs less time than getting
-	// individual cells using M.GetCell(k, j, i)
-	mvectors := M.Buffer().HostCopy().Vectors()
 	n := MeshSize()
+	m := M.Buffer().HostCopy().Vectors()
 
-	m := make([][][][3]float64, n[Z])
-	for i := 0; i < n[Z]; i++ {
-		m[i] = make([][][3]float64, n[Y])
+	_rxy := make([][][]float64, n[Z])
+	_phi := make([][][]float64, n[Z])
+	_theta := make([][][]float64, n[Z])
+
+	for k := 0; k < n[Z]; k++ {
+		_rxy[k] = make([][]float64, n[Y])
+		_phi[k] = make([][]float64, n[Y])
+		_theta[k] = make([][]float64, n[Y])
+
 		for j := 0; j < n[Y]; j++ {
-			m[i][j] = make([][3]float64, 2*width+1)
+			_rxy[k][j] = make([]float64, 2*width+1)
+			_phi[k][j] = make([]float64, 2*width+1)
+			_theta[k][j] = make([]float64, 2*width+1)
 
-			iMin := dwpos[i][j] - width - windowShift - dwShift[i][j]
-			iMax := dwpos[i][j] + 1 + width - windowShift - dwShift[i][j]
+			iMin := _dwpos[k][j] - width - windowShift
+			iMax := _dwpos[k][j] + 1 + width - windowShift
 
 			im := 0
-			for k := iMin; k < iMax; k++ {
-				m[i][j][im] = [3]float64{float64(mvectors[X][i][j][k]), float64(mvectors[Y][i][j][k]), float64(mvectors[Z][i][j][k])}
+			for i := iMin; i < iMax; i++ {
+				_rxy[k][j][im] = rxy(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
+				_phi[k][j][im] = phi(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
+				_theta[k][j][im] = theta(float64(m[Z][k][j][i]))
 				im++
-			}
-		}
-	}
-	return m
-}
-
-// For a given magnetization slice in (x, y, z, component) order, return the in-plane magnitude, phi angle, and theta
-// angle.
-func rxyPhiTheta(m [][][][3]float64) ([][][]float64, [][][]float64, [][][]float64) {
-
-	_rxy := make([][][]float64, len(m))
-	_phi := make([][][]float64, len(m))
-	_theta := make([][][]float64, len(m))
-
-	for k := 0; k < len(m); k++ {
-		_rxy[k] = make([][]float64, len(m[k]))
-		_phi[k] = make([][]float64, len(m[k]))
-		_theta[k] = make([][]float64, len(m[k]))
-
-		for j := 0; j < len(m[k]); j++ {
-			_rxy[k][j] = make([]float64, len(m[k][j]))
-			_phi[k][j] = make([]float64, len(m[k][j]))
-			_theta[k][j] = make([]float64, len(m[k][j]))
-
-			for i := 0; i < len(m[k][j]); i++ {
-				_rxy[k][j][i] = rxy(m[k][j][i][X], m[k][j][i][Y])
-				_phi[k][j][i] = phi(m[k][j][i][X], m[k][j][i][Y])
-				_theta[k][j][i] = theta(m[k][j][i][Z])
 			}
 		}
 	}
@@ -231,71 +199,6 @@ func getPhi() [][][]float64 {
 
 func getTheta() [][][]float64 {
 	return DWMonitor.theta[1]
-}
-
-func (s *activityStack) dphidt() [][][]float64 {
-	n := MeshSize()
-
-	diff := make([][][]float64, n[Z])
-	for i := 0; i < n[Z]; i++ {
-		diff[i] = make([][]float64, n[Y])
-		for j := 0; j < n[Y]; j++ {
-			diff[i][j] = make([]float64, n[X])
-			for k := 0; k < n[X]; k++ {
-				diff[i][j][k] = deltaAngle(s.phi[1][i][j][k], s.phi[0][i][j][k]) / (s.t[1] - s.t[0])
-			}
-		}
-	}
-	return diff
-}
-
-func (s *activityStack) dthetadt() [][][]float64 {
-	n := MeshSize()
-
-	diff := make([][][]float64, n[Z])
-	for i := 0; i < n[Z]; i++ {
-		diff[i] = make([][]float64, n[Y])
-		for j := 0; j < n[Y]; j++ {
-			diff[i][j] = make([]float64, n[X])
-			for k := 0; k < n[X]; k++ {
-				diff[i][j][k] = deltaAngle(s.theta[1][i][j][k], s.theta[0][i][j][k]) / (s.t[1] - s.t[0])
-			}
-		}
-	}
-	return diff
-}
-
-func getDPhiDt() [][][]float64 {
-	if !DWMonitor.initialized {
-		DWMonitor.push()
-		return zeroedGlobalSlice()
-	} else if DWMonitor.lastTime() != Time {
-		DWMonitor.push()
-	}
-	return DWMonitor.dphidt()
-}
-
-func getDThetaDt() [][][]float64 {
-	if !DWMonitor.initialized {
-		DWMonitor.push()
-		return zeroedGlobalSlice()
-	} else if DWMonitor.lastTime() != Time {
-		DWMonitor.push()
-	}
-	return DWMonitor.dthetadt()
-}
-
-func zeroedGlobalSlice() [][][]float64 {
-	n := MeshSize()
-
-	zero := make([][][]float64, n[Z])
-	for i := 0; i < n[Z]; i++ {
-		zero[i] = make([][]float64, n[Y])
-		for j := 0; j < n[Y]; j++ {
-			zero[i][j] = make([]float64, n[X])
-		}
-	}
-	return zero
 }
 
 func IntRound(x float64) int {
@@ -357,4 +260,8 @@ func _zeroDWShift() [][]int {
 		ret[i] = make([]int, n[Y])
 	}
 	return ret
+}
+
+func GetWindowShift() int {
+	return DWMonitor.WindowShift()
 }

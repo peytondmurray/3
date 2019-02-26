@@ -75,10 +75,13 @@ func (s *activityStack) push() {
 	// Update the DW and window positions; put new values of the angles into the new slots.
 	if s.initialized {
 
+		// Get the new magnetization configuration
+		_m := M.Buffer().HostCopy().Vectors()
+
 		// Get new window and domain wall positions. Get the newest rxy, phi, theta values.
 		_windowpos := GetIntWindowPos()
-		_dwpos := GetIntDWPos()
-		_rxy, _phi, _theta := rxyPhiTheta()
+		_dwpos := GetIntDWPos(_m[Z])
+		_rxy, _phi, _theta := rxyPhiTheta(_m)
 		_t := Time
 
 		_rxyAvg := averageRxy(_rxy, s.rxy)
@@ -101,9 +104,11 @@ func (s *activityStack) push() {
 
 	} else {
 
+		_m := M.Buffer().HostCopy().Vectors()
+
 		s.windowpos = GetIntWindowPos()
-		s.dwpos = GetIntDWPos()
-		s.rxy, s.phi, s.theta = rxyPhiTheta()
+		s.dwpos = GetIntDWPos(_m[Z])
+		s.rxy, s.phi, s.theta = rxyPhiTheta(_m)
 		s.t = Time
 
 		s.phidot = ZeroWorld()
@@ -153,10 +158,9 @@ func calcAz(thetaDot [][][]float64, dwpos [][]int, maskWidth int) float64 {
 	return ret
 }
 
-func rxyPhiTheta() ([][][]float64, [][][]float64, [][][]float64) {
+func rxyPhiTheta(m [3][][][]float32) ([][][]float64, [][][]float64, [][][]float64) {
 
 	n := MeshSize()
-	m := M.Buffer().HostCopy().Vectors()
 
 	_rxy := make([][][]float64, n[Z])
 	_phi := make([][][]float64, n[Z])
@@ -207,10 +211,9 @@ func IntRound(x float64) int {
 }
 
 // Get the indices of the domain wall within the simulation window
-func GetIntDWPos() [][]int {
+func GetIntDWPos(mz [][][]float32) [][]int {
 
 	n := MeshSize()
-	mz := M.Buffer().Comp(Z).HostCopy().Scalars()
 	pos := make([][]int, n[Z])
 
 	for i := 0; i < len(mz); i++ {

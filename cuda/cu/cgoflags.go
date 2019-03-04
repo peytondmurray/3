@@ -7,6 +7,8 @@ package cu
 ////default location:
 //#cgo LDFLAGS:-L/usr/local/cuda/lib64 -L/usr/local/cuda/lib
 //#cgo CFLAGS: -I/usr/local/cuda/include/
+//#cgo LDFLAGS:-L/appl/opt/cuda/10.0/lib64 -L/appl/opt/cuda/10.0/lib
+//#cgo CFLAGS: -I/appl/opt/cuda/10.0/include/
 //
 ////default location if not properly symlinked:
 //#cgo LDFLAGS:-L/usr/local/cuda-6.0/lib64 -L/usr/local/cuda-6.0/lib

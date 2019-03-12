@@ -50,14 +50,6 @@ func (s *posStack) lastTime() float64 {
 	return s.t[1]
 }
 
-// Get the minimum of two integers
-func min(i int, j int) int {
-	if i < j {
-		return i
-	}
-	return j
-}
-
 // Return the speed of the DW. If the DW position hasn't been sampled enough, sample it and return 0 for the speed.
 func getDWFineSpeed() float64 {
 	if !DWPosStack.initialized {
@@ -105,12 +97,12 @@ func DWFinexPos2D(mz [][]float32) []float32 {
 
 // Find the DW position along a 1D slice of the simulation region, interpolating across the zero crossing.
 func DWFinexPos1D(mz []float32) float32 {
-	return _interpolateZeroCrossing(mz, ZeroCrossing(mz))
+	return _interpZeroCrossing(mz, _zeroCrossing(mz))
 	panic("Can't find domain wall position.")
 }
 
 // Find the index of the 1D slice where the zero crossing of the Mz component occurs.
-func ZeroCrossing(mz []float32) int {
+func _zeroCrossing(mz []float32) int {
 	for ix := 0; ix < len(mz)-1; ix++ {
 		if _sign32(mz[ix]) == SignL && _sign32(mz[ix+1]) == SignR {
 			return ix
@@ -121,7 +113,7 @@ func ZeroCrossing(mz []float32) int {
 
 // Interpolate the index of the 1D slice wehre the zero crossing of the Mz component occurs. Returns a float32, so
 // you can't use this for indexing an array at the zero crossing point.
-func _interpolateZeroCrossing(mz []float32, i int) float32 {
+func _interpZeroCrossing(mz []float32, i int) float32 {
 	return float32(i) - (mz[i] / (mz[i+1] - mz[i]))
 }
 

@@ -8,15 +8,15 @@ import (
 )
 
 var (
-	Az		        = NewScalarValue("ext_az", "rad/s", "Out-of-plane domain wall activity", getAz)
-	Axy       		= NewScalarValue("ext_axy", "rad/s", "In-plane domain wall activity", getAxy)
-	exactDWVel		= NewScalarValue("ext_exactdwvel", "m/s", "Domain wall velocity", getExactDWVel)
-	exactDWPos		= NewScalarValue("ext_exactdwpos", "m", "Domain wall position", getExactDWPos)
-	DWMonitor activityStack // Most recent positions of DW speed
+	Az         = NewScalarValue("ext_az", "rad/s", "Out-of-plane domain wall activity", getAz)
+	Axy        = NewScalarValue("ext_axy", "rad/s", "In-plane domain wall activity", getAxy)
+	exactDWVel = NewScalarValue("ext_exactdwvel", "m/s", "Domain wall velocity", getExactDWVel)
+	exactDWPos = NewScalarValue("ext_exactdwpos", "m", "Domain wall position", getExactDWPos)
+	DWMonitor  activityStack // Most recent positions of DW speed
 )
 
 func init() {
-	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(w) sets the mask width to w.")
+	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(w, l, r) sets the mask width to w, and the sign of M which is being inserted at the left and right sides of the simulation.")
 	DeclFunc("ext_getphi", getPhi, "Get the current phi angle as a slice.")
 	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getphidot", getPhiDot, "Get the current phi angle as a slice.")
@@ -25,16 +25,20 @@ func init() {
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
 // of the domain wall are included in the domain wall activity
-func DWActivityInit(w int) {
+func DWActivityInit(w int, l int, r int) {
 	DWMonitor.maskWidth = w
+	DWMonitor.signL = l
+	DWMonitor.signR = r
 	DWMonitor.initialized = false
 	return
 }
 
 type activityStack struct {
+	signL       int
+	signR       int
 	windowpos   int
-	dwexactvel	float64
-	dwexactpos	float64
+	dwexactvel  float64
+	dwexactpos  float64
 	dwpos       [][]int
 	rxy         [][][]float64
 	phi         [][][]float64
@@ -43,8 +47,8 @@ type activityStack struct {
 	thetadot    [][][]float64
 	t           float64
 	maskWidth   int
-	Az    float64
-	Axy   float64
+	Az          float64
+	Axy         float64
 	initialized bool
 }
 
@@ -153,27 +157,24 @@ func (s *activityStack) push() {
 // Get the exact position of the domain wall. Takes into account the shift in the simulation window, as well as the
 // position of the domain wall within the window.
 func exactPos(mz [][][]float32, intPos [][]int) float64 {
-	return exactPosInWindow(mz, intPos) + GetShiftPos()
+	c := Mesh().CellSize()
+	return exactPosInWindow(mz, intPos)*c[X] + GetShiftPos()
+}
+
+// Find the exact average DW position in the simulation space in units of Mesh().CellSize()[X]
+func exactPosInWindow(mz [][][]float32, intPos [][]int) float64 {
+	pos := float64(0)
+	for iz := range mz {
+		for iy := range mz[iz] {
+			pos += float64(_interpolateZeroCrossing(mz[iz][iy], intPos[iz][iy]))
+		}
+	}
+	return pos / float64(len(intPos)*len(intPos[0]))
 }
 
 // Get the exact domain wall velocity. Takes into account the shift in the simulation window.
 func exactVel(posNew, posOld, tNew, tOld float64) float64 {
-	return (posNew - posOld)/(tNew - tOld)
-}
-
-// Get the exact position of the domain wall within the simulation window.
-func exactPosInWindow(mz [][][]float32, intPos [][]int) float64 {
-
-	c := Mesh().CellSize()
-	n := MeshSize()
-	_pos := float64(0)
-
-	for i := 0; i < n[Z]; i++ {
-		for j := 0; j < n[Y]; j++ {
-			_pos += float64(_interpolateZeroCrossing(mz[i][j], intPos[i][j]))*c[X]
-		}
-	}
-	return _pos/float64(n[Z]*n[Y])		// Take the average across the entire domain wall
+	return (posNew - posOld) / (tNew - tOld)
 }
 
 // Interpolate the index of the 1D slice wehre the zero crossing of the Mz component occurs, between x-index i and i+1.
@@ -301,12 +302,19 @@ func _getIntDWPos1D(mz []float32) int {
 
 // Find the index of the 1D slice where the zero crossing of the Mz component occurs. Check from right to left.
 func zeroCrossing(mz []float32) int {
-	for ix := len(mz) - 1; ix > 0; ix-- {
-		if _sign32(mz[ix-1]) == SignL && _sign32(mz[ix]) == SignR {
-			return ix
+	for ix := len(mz) - 1; ix > 1; ix-- {
+		if sign32(mz[ix-1]) == DWMonitor.signL && sign32(mz[ix]) == DWMonitor.signR {
+			return ix - 1
 		}
 	}
 	panic("Can't find domain wall position")
+}
+
+func sign32(a float32) int {
+	if a < 0 {
+		return -1
+	}
+	return 1
 }
 
 // Number of cells the window has shifted

@@ -7,6 +7,7 @@ package engine
 var (
 	DWFineSpeed = NewScalarValue("ext_dwfinespeed", "m/s", "Speed of domain wall", getDWFineSpeed) // Speed of DW
 	DWFinePos   = NewScalarValue("ext_dwfinepos", "m", "Position of domain wall from start", getDWxFinePos)
+	DWTimeInterval = NewScalarValue("ext_dwtimeinterval", "s", "Time elapsed between last sampling of domain wall position", getDWTimeInterval)
 	DWPosStack  posStack // Most recent positions of DW speed
 	SignL       int      // Store the sign of the z-component of the magnetization inserted at the Left side when sim window shfits
 	SignR       int      // Store the sign of the z-component of the magnetization inserted at the Right side when sim window shfits
@@ -72,6 +73,10 @@ func getDWFineSpeed() float64 {
 // The fine position of the DW is the average position of the DW along its length
 func getDWxFinePos() float64 {
 	return _avg64(SliceDWxFinePos2D())
+}
+
+func getDWTimeInterval() float64 {
+	return DWPosStack.t[1]-DWPosStack.t[0]
 }
 
 // The fine position of the DW for each value of Y is the shift position of the simulation plus the location of the

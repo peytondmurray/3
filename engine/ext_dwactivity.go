@@ -16,7 +16,7 @@ var (
 )
 
 func init() {
-	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(w, l, r) sets the mask width to w, and the sign of M which is being inserted at the left and right sides of the simulation.")
+	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(w, l, r, kind) sets the mask width to w, the sign of M which is being inserted at the left l and right r sides of the simulation, and the kind of DW position calculation ('zc' or 'avg').")
 	DeclFunc("ext_getphi", getPhi, "Get the current phi angle as a slice.")
 	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getphidot", getPhiDot, "Get the current phi angle as a slice.")
@@ -25,17 +25,19 @@ func init() {
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
 // of the domain wall are included in the domain wall activity
-func DWActivityInit(w int, l int, r int) {
+func DWActivityInit(w int, l int, r int, kind string) {
 	DWMonitor.maskWidth = w
 	DWMonitor.signL = l
 	DWMonitor.signR = r
 	DWMonitor.initialized = false
+	DWMonitor.postype = kind
 	return
 }
 
 type activityStack struct {
 	signL       int
 	signR       int
+	postype     string
 	windowpos   int
 	dwexactvel  float64
 	dwexactpos  float64
@@ -114,7 +116,14 @@ func (s *activityStack) push() {
 		_rxy, _phi, _theta := rxyPhiTheta(_m)
 		_t := Time
 
-		_dwexactpos := exactPos(_m[Z], _dwpos)
+		_dwexactpos := 0.0
+		if s.postype == "zc" {
+			_dwexactpos = exactPosZC(_m[Z], _dwpos)
+		} else if s.postype == "avg" {
+			_dwexactpos = exactPosAvg(_m[Z])
+		} else {
+			panic("Invalid DW position calculation type; must be 'zc' or 'avg'.")
+		}
 		_dwexactvel := exactVel(_dwexactpos, s.dwexactpos, _t, s.t)
 		_rxyAvg := averageRxy(_rxy, s.rxy)
 		_phidot := angularVel(_phi, s.phi, _windowpos, s.windowpos, _t, s.t)
@@ -142,7 +151,15 @@ func (s *activityStack) push() {
 
 		s.windowpos = GetIntWindowPos()
 		s.dwpos = GetIntDWPos(_m[Z])
-		s.dwexactpos = exactPos(_m[Z], s.dwpos)
+
+		if s.postype == "zc" {
+			s.dwexactpos = exactPosZC(_m[Z], s.dwpos)
+		} else if s.postype == "avg" {
+			s.dwexactpos = exactPosAvg(_m[Z])
+		} else {
+			panic("Invalid DW position calculation type; must be 'zc' or 'avg'.")
+		}
+
 		s.dwexactvel = 0
 		s.rxy, s.phi, s.theta = rxyPhiTheta(_m)
 		s.t = Time
@@ -154,9 +171,37 @@ func (s *activityStack) push() {
 	return
 }
 
+func exactPosAvg(mz [][][]float32) float64 {
+
+	ws := Mesh().WorldSize()
+
+	// Get average magnetization
+	avg := avgMz(mz)
+
+	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
+	// 50% are flipped up, the DW is 50% from the left side of the simulation window
+	pct := 1.0 - (1.0-avg)/2.0
+
+	// Convert to actual position in window, then add on window shift
+	return pct*ws[X] + GetShiftPos()
+}
+
+func avgMz(mz [][][]float32) float64 {
+	n := MeshSize()
+	sum := float32(0.0)
+	for i := range mz {
+		for j := range mz[i] {
+			for k := range mz[i][j] {
+				sum += mz[i][j][k]
+			}
+		}
+	}
+	return float64(sum) / float64(n[X]*n[Y]*n[Z])
+}
+
 // Get the exact position of the domain wall. Takes into account the shift in the simulation window, as well as the
 // position of the domain wall within the window.
-func exactPos(mz [][][]float32, intPos [][]int) float64 {
+func exactPosZC(mz [][][]float32, intPos [][]int) float64 {
 	c := Mesh().CellSize()
 	return exactPosInWindow(mz, intPos)*c[X] + GetShiftPos()
 }

@@ -242,9 +242,10 @@ func deltaAngle(a, b float64) float64 {
 
 func calcAxy(phiDot, rxyAvg [][][]float64, dwpos [][]int, maskWidth int) float64 {
 
+	n := MeshSize()
 	ret := float64(0)
-	for i := range phiDot {
-		for j := range phiDot[i] {
+	for i := 0; i < n[Z]; i++ {
+		for j := 0; j < n[Y]; j++ {
 			for k := dwpos[i][j] - maskWidth; k < dwpos[i][j]+maskWidth+1; k++ {
 				ret += phiDot[i][j][k] * rxyAvg[i][j][k]
 			}
@@ -255,9 +256,10 @@ func calcAxy(phiDot, rxyAvg [][][]float64, dwpos [][]int, maskWidth int) float64
 
 func calcAz(thetaDot [][][]float64, dwpos [][]int, maskWidth int) float64 {
 
+	n := MeshSize()
 	ret := float64(0)
-	for i := range thetaDot {
-		for j := range thetaDot[i] {
+	for i := 0; i < n[Z]; i++ {
+		for j := 0; j < n[Y]; j++ {
 			for k := dwpos[i][j] - maskWidth; k < dwpos[i][j]+maskWidth+1; k++ {
 				ret += thetaDot[i][j][k]
 			}
@@ -324,9 +326,9 @@ func GetIntDWPos(mz [][][]float32) [][]int {
 	n := MeshSize()
 	pos := make([][]int, n[Z])
 
-	for i := range mz {
+	for i := 0; i < len(mz); i++ {
 		pos[i] = make([]int, n[Y])
-		for j := range mz[i] {
+		for j := 0; j < n[Y]; j++ {
 			pos[i][j] = _getIntDWPos1D(mz[i][j])
 		}
 	}

@@ -10,8 +10,10 @@ import (
 var (
 	Az         = NewScalarValue("ext_az", "rad/s", "Out-of-plane domain wall activity", getAz)
 	Axy        = NewScalarValue("ext_axy", "rad/s", "In-plane domain wall activity", getAxy)
-	exactDWVel = NewScalarValue("ext_exactdwvel", "m/s", "Domain wall velocity", getExactDWVel)
-	exactDWPos = NewScalarValue("ext_exactdwpos", "m", "Domain wall position", getExactDWPos)
+	exactDWVelAvg = NewScalarValue("ext_exactdwvelavg", "m/s", "Domain wall velocity, found via average value of mz", getExactDWVelAvg)
+	exactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Domain wall position, found via average value of mz", getExactDWPosAvg)
+	exactDWVelZC = NewScalarValue("ext_exactdwvelzc", "m/s", "Domain wall velocity, found via zero crossing of mz", getExactDWVelZC)
+	exactDWPosZC = NewScalarValue("ext_exactdwposzc", "m", "Domain wall position, found via zero crossing of mz", getExactDWPosZC)
 	DWMonitor  activityStack // Most recent positions of DW speed
 )
 
@@ -34,13 +36,53 @@ func DWActivityInit(w int, l int, r int, kind string) {
 	return
 }
 
+type dwAvgPosStack struct {
+	t float64
+	dwexactvel float64
+	dwexactpos float64
+}
+
+func(s *dwAvgPosStack) init(t float64, mz [][][]float32) {
+	s.dwexactpos = exactPosAvg(mz)
+	s.dwexactvel = 0
+	return
+}
+
+func (s *dwAvgPosStack) update(t float64, mz [][][]float32) {
+	dwexactpos := exactPosAvg(mz)
+	dwexactvel := exactVel(dwexactpos, s.dwexactpos, t, s.t)
+	s.dwexactpos = dwexactpos
+	s.dwexactvel = dwexactvel
+	return
+}
+
+type dwZCPosStack struct {
+	t float64
+	dwexactvel float64
+	dwexactpos float64
+}
+
+func(s *dwZCPosStack) init(t float64, mz [][][]float32, dwPos [][]int) {
+	s.dwexactpos = exactPosZC(mz, dwPos)
+	s.dwexactvel = 0
+	return
+}
+
+func (s *dwZCPosStack) update(t float64, mz [][][]float32, dwPos [][]int) {
+	dwexactpos := exactPosZC(mz, dwPos)
+	dwexactvel := exactVel(dwexactpos, s.dwexactpos, t, s.t)
+	s.dwexactpos = dwexactpos
+	s.dwexactvel = dwexactvel
+	return
+}
+
 type activityStack struct {
 	signL       int
 	signR       int
 	postype     string
 	windowpos   int
-	dwexactvel  float64
-	dwexactpos  float64
+	dwexactMonitorZC dwZCPosStack
+	dwexactMonitorAvg dwAvgPosStack
 	dwpos       [][]int
 	rxy         [][][]float64
 	phi         [][][]float64
@@ -54,18 +96,32 @@ type activityStack struct {
 	initialized bool
 }
 
-func (s *activityStack) getExactDWPos() float64 {
+func (s *activityStack) getExactDWPosZC() float64 {
 	if s.t != Time || !s.initialized {
 		s.push()
 	}
-	return s.dwexactpos
+	return s.dwexactMonitorZC.dwexactpos
 }
 
-func (s *activityStack) getExactDWVel() float64 {
+func (s *activityStack) getExactDWVelZC() float64 {
 	if s.t != Time || !s.initialized {
 		s.push()
 	}
-	return s.dwexactvel
+	return s.dwexactMonitorZC.dwexactvel
+}
+
+func (s *activityStack) getExactDWPosAvg() float64 {
+	if s.t != Time || !s.initialized {
+		s.push()
+	}
+	return s.dwexactMonitorAvg.dwexactpos
+}
+
+func (s *activityStack) getExactDWVelAvg() float64 {
+	if s.t != Time || !s.initialized {
+		s.push()
+	}
+	return s.dwexactMonitorAvg.dwexactvel
 }
 
 func (s *activityStack) getAz() float64 {
@@ -82,12 +138,19 @@ func (s *activityStack) getAxy() float64 {
 	return s.Axy
 }
 
-func getExactDWPos() float64 {
-	return DWMonitor.getExactDWPos()
+func getExactDWPosZC() float64 {
+	return DWMonitor.getExactDWPosZC()
 }
 
-func getExactDWVel() float64 {
-	return DWMonitor.getExactDWVel()
+func getExactDWVelZC() float64 {
+	return DWMonitor.getExactDWVelZC()
+}
+func getExactDWPosAvg() float64 {
+	return DWMonitor.getExactDWPosAvg()
+}
+
+func getExactDWVelAvg() float64 {
+	return DWMonitor.getExactDWVelAvg()
 }
 
 func getAz() float64 {
@@ -116,15 +179,16 @@ func (s *activityStack) push() {
 		_rxy, _phi, _theta := rxyPhiTheta(_m)
 		_t := Time
 
-		_dwexactpos := 0.0
 		if s.postype == "zc" {
-			_dwexactpos = exactPosZC(_m[Z], _dwpos)
+			s.dwexactMonitorZC.update(_t, _m[Z], _dwpos)
 		} else if s.postype == "avg" {
-			_dwexactpos = exactPosAvg(_m[Z])
+			s.dwexactMonitorAvg.update(_t, _m[Z])
+		} else if s.postype == "both" {
+			s.dwexactMonitorZC.update(_t, _m[Z], _dwpos)
+			s.dwexactMonitorAvg.update(_t, _m[Z])
 		} else {
-			panic("Invalid DW position calculation type; must be 'zc' or 'avg'.")
+			panic("Invalid DW position calculation type; must be 'zc' or 'avg' or 'both'.")
 		}
-		_dwexactvel := exactVel(_dwexactpos, s.dwexactpos, _t, s.t)
 		_rxyAvg := averageRxy(_rxy, s.rxy)
 		_phidot := angularVel(_phi, s.phi, _windowpos, s.windowpos, _t, s.t)
 		_thetadot := angularVel(_theta, s.theta, _windowpos, s.windowpos, _t, s.t)
@@ -136,8 +200,6 @@ func (s *activityStack) push() {
 
 		s.windowpos = _windowpos
 		s.dwpos = _dwpos
-		s.dwexactpos = _dwexactpos
-		s.dwexactvel = _dwexactvel
 		s.rxy = _rxy
 		s.phi = _phi
 		s.theta = _theta
@@ -149,20 +211,22 @@ func (s *activityStack) push() {
 
 		_m := M.Buffer().HostCopy().Vectors()
 
+		s.t = Time
 		s.windowpos = GetIntWindowPos()
 		s.dwpos = GetIntDWPos(_m[Z])
 
 		if s.postype == "zc" {
-			s.dwexactpos = exactPosZC(_m[Z], s.dwpos)
+			s.dwexactMonitorZC.init(s.t, _m[Z], s.dwpos)
 		} else if s.postype == "avg" {
-			s.dwexactpos = exactPosAvg(_m[Z])
+			s.dwexactMonitorAvg.init(s.t, _m[Z])
+		} else if s.postype == "both" {
+			s.dwexactMonitorZC.init(s.t, _m[Z], s.dwpos)
+			s.dwexactMonitorAvg.init(s.t, _m[Z])
 		} else {
-			panic("Invalid DW position calculation type; must be 'zc' or 'avg'.")
+			panic("Invalid DW position calculation type; must be 'zc' or 'avg' or 'both'.")
 		}
 
-		s.dwexactvel = 0
 		s.rxy, s.phi, s.theta = rxyPhiTheta(_m)
-		s.t = Time
 
 		s.phidot = ZeroWorld()
 		s.thetadot = ZeroWorld()

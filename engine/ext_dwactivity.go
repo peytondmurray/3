@@ -8,13 +8,13 @@ import (
 )
 
 var (
-	Az         = NewScalarValue("ext_az", "rad/s", "Out-of-plane domain wall activity", getAz)
-	Axy        = NewScalarValue("ext_axy", "rad/s", "In-plane domain wall activity", getAxy)
-	exactDWVelAvg = NewScalarValue("ext_exactdwvelavg", "m/s", "Domain wall velocity, found via average value of mz", getExactDWVelAvg)
-	exactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Domain wall position, found via average value of mz", getExactDWPosAvg)
-	exactDWVelZC = NewScalarValue("ext_exactdwvelzc", "m/s", "Domain wall velocity, found via zero crossing of mz", getExactDWVelZC)
-	exactDWPosZC = NewScalarValue("ext_exactdwposzc", "m", "Domain wall position, found via zero crossing of mz", getExactDWPosZC)
-	DWMonitor  activityStack // Most recent positions of DW speed
+	Az            = NewScalarValue("ext_az", "rad/s", "Out-of-plane domain wall activity", getAz)
+	Axy           = NewScalarValue("ext_axy", "rad/s", "In-plane domain wall activity", getAxy)
+	ExactDWVelAvg = NewScalarValue("ext_exactdwvelavg", "m/s", "Speed of domain wall", getExactVelAvg) // Speed of DW
+	ExactDWVelZC  = NewScalarValue("ext_exactdwvelzc", "m/s", "Speed of domain wall", getExactVelZC)   // Speed of DW
+	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
+	ExactDWPosZC  = NewScalarValue("ext_exactdwposzc", "m", "Position of domain wall from start", getExactPosZC)
+	DWMonitor     activityStack // Most recent positions of DW speed
 )
 
 func init() {
@@ -27,62 +27,26 @@ func init() {
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
 // of the domain wall are included in the domain wall activity
-func DWActivityInit(w int, l int, r int, kind string) {
+func DWActivityInit(w int, l int, r int) {
 	DWMonitor.maskWidth = w
 	DWMonitor.signL = l
 	DWMonitor.signR = r
 	DWMonitor.initialized = false
-	DWMonitor.postype = kind
-	return
-}
-
-type dwAvgPosStack struct {
-	t float64
-	dwexactvel float64
-	dwexactpos float64
-}
-
-func(s *dwAvgPosStack) init(t float64, mz [][][]float32) {
-	s.dwexactpos = exactPosAvg(mz)
-	s.dwexactvel = 0
-	return
-}
-
-func (s *dwAvgPosStack) update(t float64, mz [][][]float32) {
-	dwexactpos := exactPosAvg(mz)
-	dwexactvel := exactVel(dwexactpos, s.dwexactpos, t, s.t)
-	s.dwexactpos = dwexactpos
-	s.dwexactvel = dwexactvel
-	return
-}
-
-type dwZCPosStack struct {
-	t float64
-	dwexactvel float64
-	dwexactpos float64
-}
-
-func(s *dwZCPosStack) init(t float64, mz [][][]float32, dwPos [][]int) {
-	s.dwexactpos = exactPosZC(mz, dwPos)
-	s.dwexactvel = 0
-	return
-}
-
-func (s *dwZCPosStack) update(t float64, mz [][][]float32, dwPos [][]int) {
-	dwexactpos := exactPosZC(mz, dwPos)
-	dwexactvel := exactVel(dwexactpos, s.dwexactpos, t, s.t)
-	s.dwexactpos = dwexactpos
-	s.dwexactvel = dwexactvel
 	return
 }
 
 type activityStack struct {
+
+	// DWVel
+	posAvg float64
+	posZC  float64
+	velAvg float64
+	velZC  float64
+
+	// DWActivity
 	signL       int
 	signR       int
-	postype     string
 	windowpos   int
-	dwexactMonitorZC dwZCPosStack
-	dwexactMonitorAvg dwAvgPosStack
 	dwpos       [][]int
 	rxy         [][][]float64
 	phi         [][][]float64
@@ -96,200 +60,111 @@ type activityStack struct {
 	initialized bool
 }
 
-func (s *activityStack) getExactDWPosZC() float64 {
-	if s.t != Time || !s.initialized {
+func (s *activityStack) update() {
+	if !s.initialized {
+		s.init()
+	} else if s.t != Time {
 		s.push()
 	}
-	return s.dwexactMonitorZC.dwexactpos
+	return
 }
 
-func (s *activityStack) getExactDWVelZC() float64 {
-	if s.t != Time || !s.initialized {
-		s.push()
-	}
-	return s.dwexactMonitorZC.dwexactvel
+func getExactPosAvg() float64 {
+	DWMonitor.update()
+	return DWMonitor.posAvg
 }
 
-func (s *activityStack) getExactDWPosAvg() float64 {
-	if s.t != Time || !s.initialized {
-		s.push()
-	}
-	return s.dwexactMonitorAvg.dwexactpos
+func getExactPosZC() float64 {
+	DWMonitor.update()
+	return DWMonitor.posZC
 }
 
-func (s *activityStack) getExactDWVelAvg() float64 {
-	if s.t != Time || !s.initialized {
-		s.push()
-	}
-	return s.dwexactMonitorAvg.dwexactvel
+func getExactVelAvg() float64 {
+	DWMonitor.update()
+	return DWMonitor.velAvg
 }
 
-func (s *activityStack) getAz() float64 {
-	if s.t != Time || !s.initialized {
-		s.push()
-	}
-	return s.Az
-}
-
-func (s *activityStack) getAxy() float64 {
-	if s.t != Time || !s.initialized {
-		s.push()
-	}
-	return s.Axy
-}
-
-func getExactDWPosZC() float64 {
-	return DWMonitor.getExactDWPosZC()
-}
-
-func getExactDWVelZC() float64 {
-	return DWMonitor.getExactDWVelZC()
-}
-func getExactDWPosAvg() float64 {
-	return DWMonitor.getExactDWPosAvg()
-}
-
-func getExactDWVelAvg() float64 {
-	return DWMonitor.getExactDWVelAvg()
+func getExactVelZC() float64 {
+	DWMonitor.update()
+	return DWMonitor.velZC
 }
 
 func getAz() float64 {
-	return DWMonitor.getAz()
+	DWMonitor.update()
+	return DWMonitor.Az
 }
 
 func getAxy() float64 {
-	return DWMonitor.getAxy()
+	DWMonitor.update()
+	return DWMonitor.Axy
 }
 
 func (s *activityStack) lastTime() float64 {
 	return s.t
 }
 
-func (s *activityStack) push() {
+func (s *activityStack) init() {
+	_m := M.Buffer().HostCopy().Vectors()
 
-	// Update the DW and window positions; put new values of the angles into the new slots.
-	if s.initialized {
+	s.t = Time
+	s.windowpos = GetIntWindowPos()
+	s.dwpos = GetNearestIntDWPos(_m[Z])
 
-		// Get the new magnetization configuration
-		_m := M.Buffer().HostCopy().Vectors()
+	s.rxy, s.phi, s.theta = rxyPhiTheta(_m)
 
-		// Get new window and domain wall positions. Get the newest rxy, phi, theta values.
-		_windowpos := GetIntWindowPos()
-		_dwpos := GetIntDWPos(_m[Z])
-		_rxy, _phi, _theta := rxyPhiTheta(_m)
-		_t := Time
+	s.phidot = ZeroWorld()
+	s.thetadot = ZeroWorld()
+	s.initialized = true
 
-		if s.postype == "zc" {
-			s.dwexactMonitorZC.update(_t, _m[Z], _dwpos)
-		} else if s.postype == "avg" {
-			s.dwexactMonitorAvg.update(_t, _m[Z])
-		} else if s.postype == "both" {
-			s.dwexactMonitorZC.update(_t, _m[Z], _dwpos)
-			s.dwexactMonitorAvg.update(_t, _m[Z])
-		} else {
-			panic("Invalid DW position calculation type; must be 'zc' or 'avg' or 'both'.")
-		}
-		_rxyAvg := averageRxy(_rxy, s.rxy)
-		_phidot := angularVel(_phi, s.phi, _windowpos, s.windowpos, _t, s.t)
-		_thetadot := angularVel(_theta, s.theta, _windowpos, s.windowpos, _t, s.t)
+	// DWVel
+	s.posAvg = exactPosAvg(_m[Z])
+	s.posZC = exactPosZC(_m[Z])
+	s.velAvg = 0.0
+	s.velZC = 0.0
 
-		// Calculate Axy and Az by summing the angular velocity of the cells which were near the domain wall at the
-		// last step (i.e., within maskWidth cells of the old dwpos).
-		s.Axy = calcAxy(_phidot, _rxyAvg, s.dwpos, s.maskWidth)
-		s.Az = calcAz(_thetadot, s.dwpos, s.maskWidth)
-
-		s.windowpos = _windowpos
-		s.dwpos = _dwpos
-		s.rxy = _rxy
-		s.phi = _phi
-		s.theta = _theta
-		s.t = _t
-		s.phidot = _phidot
-		s.thetadot = _thetadot
-
-	} else {
-
-		_m := M.Buffer().HostCopy().Vectors()
-
-		s.t = Time
-		s.windowpos = GetIntWindowPos()
-		s.dwpos = GetIntDWPos(_m[Z])
-
-		if s.postype == "zc" {
-			s.dwexactMonitorZC.init(s.t, _m[Z], s.dwpos)
-		} else if s.postype == "avg" {
-			s.dwexactMonitorAvg.init(s.t, _m[Z])
-		} else if s.postype == "both" {
-			s.dwexactMonitorZC.init(s.t, _m[Z], s.dwpos)
-			s.dwexactMonitorAvg.init(s.t, _m[Z])
-		} else {
-			panic("Invalid DW position calculation type; must be 'zc' or 'avg' or 'both'.")
-		}
-
-		s.rxy, s.phi, s.theta = rxyPhiTheta(_m)
-
-		s.phidot = ZeroWorld()
-		s.thetadot = ZeroWorld()
-		s.initialized = true
-	}
 	return
 }
 
-func exactPosAvg(mz [][][]float32) float64 {
+func (s *activityStack) push() {
 
-	ws := Mesh().WorldSize()
+	// Update the DW and window positions; put new values of the angles into the new slots.
+	// Get the new magnetization configuration
+	_m := M.Buffer().HostCopy().Vectors()
+	_t := Time
 
-	// Get average magnetization
-	avg := avgMz(mz)
+	// DWVel_________________________
+	_posAvg := exactPosAvg(_m[Z])
+	_posZC := exactPosZC(_m[Z])
+	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
+	s.velZC = (_posZC - s.posZC) / (_t - s.t)
+	s.posAvg = _posAvg
+	s.posZC = _posZC
+	// DWVel_________________________
 
-	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
-	// 50% are flipped up, the DW is 50% from the left side of the simulation window
-	pct := 1.0 - (1.0-avg)/2.0
+	// Get new window and domain wall positions. Get the newest rxy, phi, theta values.
+	_windowpos := GetIntWindowPos()
+	_dwpos := GetNearestIntDWPos(_m[Z])
+	_rxy, _phi, _theta := rxyPhiTheta(_m)
 
-	// Convert to actual position in window, then add on window shift
-	return pct*ws[X] + GetShiftPos()
-}
+	_rxyAvg := averageRxy(_rxy, s.rxy)
+	_phidot := angularVel(_phi, s.phi, _windowpos, s.windowpos, _t, s.t)
+	_thetadot := angularVel(_theta, s.theta, _windowpos, s.windowpos, _t, s.t)
 
-func avgMz(mz [][][]float32) float64 {
-	n := MeshSize()
-	sum := float32(0.0)
-	for i := range mz {
-		for j := range mz[i] {
-			for k := range mz[i][j] {
-				sum += mz[i][j][k]
-			}
-		}
-	}
-	return float64(sum) / float64(n[X]*n[Y]*n[Z])
-}
+	// Calculate Axy and Az by summing the angular velocity of the cells which were near the domain wall at the
+	// last step (i.e., within maskWidth cells of the old dwpos).
+	s.Axy = calcAxy(_phidot, _rxyAvg, s.dwpos, s.maskWidth)
+	s.Az = calcAz(_thetadot, s.dwpos, s.maskWidth)
 
-// Get the exact position of the domain wall. Takes into account the shift in the simulation window, as well as the
-// position of the domain wall within the window.
-func exactPosZC(mz [][][]float32, intPos [][]int) float64 {
-	c := Mesh().CellSize()
-	return exactPosInWindow(mz, intPos)*c[X] + GetShiftPos()
-}
+	s.windowpos = _windowpos
+	s.dwpos = _dwpos
+	s.rxy = _rxy
+	s.phi = _phi
+	s.theta = _theta
+	s.t = _t
+	s.phidot = _phidot
+	s.thetadot = _thetadot
 
-// Find the exact average DW position in the simulation space in units of Mesh().CellSize()[X]
-func exactPosInWindow(mz [][][]float32, intPos [][]int) float64 {
-	pos := float64(0)
-	for iz := range mz {
-		for iy := range mz[iz] {
-			pos += float64(_interpolateZeroCrossing(mz[iz][iy], intPos[iz][iy]))
-		}
-	}
-	return pos / float64(len(intPos)*len(intPos[0]))
-}
-
-// Get the exact domain wall velocity. Takes into account the shift in the simulation window.
-func exactVel(posNew, posOld, tNew, tOld float64) float64 {
-	return (posNew - posOld) / (tNew - tOld)
-}
-
-// Interpolate the index of the 1D slice wehre the zero crossing of the Mz component occurs, between x-index i and i+1.
-// Returns a float32, so you can't use this for indexing an array at the zero crossing point.
-func _interpolateZeroCrossing(mz []float32, i int) float32 {
-	return float32(i) - (mz[i] / (mz[i+1] - mz[i]))
+	return
 }
 
 // Calculate the change in angle for two angles, taking into account the fact that 2*pi = 0. If the difference in angles
@@ -385,7 +260,7 @@ func IntRound(x float64) int {
 }
 
 // Get the indices of the domain wall within the simulation window.
-func GetIntDWPos(mz [][][]float32) [][]int {
+func GetNearestIntDWPos(mz [][][]float32) [][]int {
 
 	n := MeshSize()
 	pos := make([][]int, n[Z])
@@ -393,15 +268,14 @@ func GetIntDWPos(mz [][][]float32) [][]int {
 	for i := 0; i < len(mz); i++ {
 		pos[i] = make([]int, n[Y])
 		for j := 0; j < n[Y]; j++ {
-			pos[i][j] = _getIntDWPos1D(mz[i][j])
+			pos[i][j] = getNearestIntDWPos1D(mz[i][j])
 		}
 	}
 	return pos
 }
 
-// Check from right to left, since the domain wall moves in that direction; this means that bubbles will only be
-// forming to the left, and we will not be susceptible to them with this method.
-func _getIntDWPos1D(mz []float32) int {
+// Find the index of the element nearest to the domain wall.
+func getNearestIntDWPos1D(mz []float32) int {
 	ix := zeroCrossing(mz)
 	if math.Abs(float64(mz[ix-1])) < math.Abs(float64(mz[ix])) {
 		return ix - 1
@@ -409,7 +283,8 @@ func _getIntDWPos1D(mz []float32) int {
 	return ix
 }
 
-// Find the index of the 1D slice where the zero crossing of the Mz component occurs. Check from right to left.
+// Find the index of the 1D slice just before the zero crossing of the Mz component. Check from right to left;
+// since bubbles will only be forming to the left, and we will not be susceptible to them with this method.
 func zeroCrossing(mz []float32) int {
 	for ix := len(mz) - 1; ix > 1; ix-- {
 		if sign32(mz[ix-1]) == DWMonitor.signL && sign32(mz[ix]) == DWMonitor.signR {
@@ -506,4 +381,70 @@ func averageRxy(rxyNew, rxyOld [][][]float64) [][][]float64 {
 		}
 	}
 	return ret
+}
+
+func exactPosAvg(mz [][][]float32) float64 {
+
+	ws := Mesh().WorldSize()
+
+	// Get average magnetization
+	avg := avgMz(mz)
+
+	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
+	// 50% are flipped up, the DW is 50% from the left side of the simulation window
+	pct := 1.0 - (1.0-avg)/2.0
+
+	// Convert to actual position in window, then add on window shift
+	return pct*ws[X] + GetShiftPos()
+}
+
+func avgMz(mz [][][]float32) float64 {
+	n := MeshSize()
+	sum := float32(0.0)
+	for i := range mz {
+		for j := range mz[i] {
+			for k := range mz[i][j] {
+				sum += mz[i][j][k]
+			}
+		}
+	}
+	return float64(sum) / float64(n[X]*n[Y]*n[Z])
+}
+
+// Get the exact position of the domain wall from the zero crossing of Mz.
+func exactPosZC(mz [][][]float32) float64 {
+	c := Mesh().CellSize()
+	return exactPosInWindow(mz, getIntDWPos(mz))*c[X] + GetShiftPos()
+}
+
+// Get the indices on the left side of the domain wall within the simulation window.
+func getIntDWPos(mz [][][]float32) [][]int {
+
+	n := MeshSize()
+	pos := make([][]int, n[Z])
+
+	for i := 0; i < len(mz); i++ {
+		pos[i] = make([]int, n[Y])
+		for j := 0; j < n[Y]; j++ {
+			pos[i][j] = zeroCrossing(mz[i][j]) // Defined in ext_dwactivity.go
+		}
+	}
+	return pos
+}
+
+// Find the exact average DW position in the simulation space in units of Mesh().CellSize()[X]
+func exactPosInWindow(mz [][][]float32, intPos [][]int) float64 {
+	pos := float64(0)
+	for iz := range mz {
+		for iy := range mz[iz] {
+			pos += float64(interpolateZeroCrossing(mz[iz][iy], intPos[iz][iy]))
+		}
+	}
+	return pos / float64(len(intPos)*len(intPos[0]))
+}
+
+// Interpolate the index of the 1D slice wehre the zero crossing of the Mz component occurs, between x-index i and i+1.
+// Returns a float32, so you can't use this for indexing an array at the zero crossing point.
+func interpolateZeroCrossing(mz []float32, i int) float32 {
+	return float32(i) - (mz[i] / (mz[i+1] - mz[i]))
 }

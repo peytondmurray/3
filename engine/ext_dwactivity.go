@@ -15,7 +15,7 @@ var (
 	ExactDWVelZC  = NewScalarValue("ext_exactdwvelzc", "m/s", "Speed of domain wall", getExactVelZC)
 	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
 	ExactDWPosZC  = NewScalarValue("ext_exactdwposzc", "m", "Position of domain wall from start", getExactPosZC)
-	DWWidth = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", getDWWidth)
+	DWWidth       = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", getDWWidth)
 	DWMonitor     activityStack // Most recent positions of DW speed
 )
 
@@ -34,7 +34,7 @@ func DWActivityInit(w int, l int, r int) {
 	DWMonitor.signL = l
 	DWMonitor.signR = r
 	DWMonitor.initialized = false
-	DWMonitor.expectedHalfWidth = IntRound(0.5*getExpectedDWWidth()/Mesh().CellSize()[X])
+	DWMonitor.expectedHalfWidth = IntRound(0.5 * getExpectedDWWidth() / Mesh().CellSize()[X])
 	if DWMonitor.expectedHalfWidth < 1 {
 		panic("Warning: DW half-width is less than 1 cell; decrease your cell size!")
 	}
@@ -133,10 +133,11 @@ func (s *activityStack) init() {
 
 	// DWVel
 	_intPosZC := getIntDWPos(_m[Z])
-	s.posAvg = exactPosAvg(_m[Z])
-	s.posZC = exactPosZC(_m[Z], _intPosZC)
+	// s.posAvg = exactPosAvg(_m[Z])
+	s.posAvg = exactPosAvg()
+	// s.posZC = exactPosZC(_m[Z], _intPosZC)
 	s.velAvg = 0.0
-	s.velZC = 0.0
+	// s.velZC = 0.0
 
 	// DWWidth
 	s.width = tanhFitDW(_m[Z], _intPosZC, s.expectedHalfWidth)
@@ -153,12 +154,13 @@ func (s *activityStack) push() {
 
 	// DWVel_________________________
 	_intPosZC := getIntDWPos(_m[Z])
-	_posAvg := exactPosAvg(_m[Z])
-	_posZC := exactPosZC(_m[Z], _intPosZC)
+	// _posAvg := exactPosAvg(_m[Z])
+	_posAvg := exactPosAvg()
+	// _posZC := exactPosZC(_m[Z], _intPosZC)
 	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
-	s.velZC = (_posZC - s.posZC) / (_t - s.t)
+	// s.velZC = (_posZC - s.posZC) / (_t - s.t)
 	s.posAvg = _posAvg
-	s.posZC = _posZC
+	// s.posZC = _posZC
 	// DWVel_________________________
 
 	// DWWidth_______________________
@@ -407,12 +409,15 @@ func averageRxy(rxyNew, rxyOld [][][]float64) [][][]float64 {
 	return ret
 }
 
-func exactPosAvg(mz [][][]float32) float64 {
+// func exactPosAvg(mz [][][]float32) float64 {
+func exactPosAvg() float64 {
 
 	ws := Mesh().WorldSize()
 
-	// Get average magnetization
-	avg := avgMz(mz)
+	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function. They don't return
+	// exactly the same values, however...?
+	// avg := avgMz(mz)
+	avg := M.Comp(Z).Average()
 
 	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
 	// 50% are flipped up, the DW is 50% from the left side of the simulation window
@@ -479,7 +484,7 @@ func tanhFitDW(mz [][][]float32, intPos [][]int, halfWidth int) float64 {
 	c := Mesh().CellSize()
 	x := make([]float64, 2*halfWidth+1)
 	for i := range x {
-		x[i] = float64(i)*c[X]
+		x[i] = float64(i) * c[X]
 	}
 
 	width := float64(0)
@@ -494,14 +499,14 @@ func tanhFitDW(mz [][][]float32, intPos [][]int, halfWidth int) float64 {
 }
 
 func fitTanhDW1D(x []float64, mz []float64) float64 {
-	return math.Abs(float64(1)/fitSlope1D(x, mz))
+	return math.Abs(float64(1) / fitSlope1D(x, mz))
 }
 
 func getExpectedDWWidth() float64 {
 
 	Keff := Ku1.Average() - 0.5*mag.Mu0*math.Pow(Msat.Average(), 2)
-	DWWidthAnisotropy := math.Sqrt(Aex.Average()/Keff)
-	DWWidthDemag := math.Sqrt(2*Aex.Average()/(mag.Mu0*math.Pow(Msat.Average(), 2)))
+	DWWidthAnisotropy := math.Sqrt(Aex.Average() / Keff)
+	DWWidthDemag := math.Sqrt(2 * Aex.Average() / (mag.Mu0 * math.Pow(Msat.Average(), 2)))
 
 	if DWWidthAnisotropy < DWWidthDemag {
 		return DWWidthAnisotropy
@@ -520,7 +525,7 @@ func sumSlice(s []float64) float64 {
 func mulSlice(a, b []float64) []float64 {
 	ret := make([]float64, len(a))
 	for i := range a {
-		ret[i] = a[i]*b[i]
+		ret[i] = a[i] * b[i]
 	}
 	return ret
 }
@@ -529,11 +534,11 @@ func fitSlope1D(x, y []float64) float64 {
 	N := float64(len(x))
 
 	t4 := sumSlice(x)
-	t1 := N*sumSlice(mulSlice(x, y))/t4
+	t1 := N * sumSlice(mulSlice(x, y)) / t4
 	t2 := sumSlice(y)
-	t3 := N*sumSlice(mulSlice(x, x))/t4
+	t3 := N * sumSlice(mulSlice(x, x)) / t4
 
-	return (t1 - t2)/(t3 - t4)
+	return (t1 - t2) / (t3 - t4)
 }
 
 func castFloat64(s []float32) []float64 {

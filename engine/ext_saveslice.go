@@ -121,7 +121,7 @@ func save2D(s [][]float64, name string) {
 	// Write values
 	for i := range s {
 		for j := range s[i] {
-			f.WriteString(fmt.Sprintf("%d,%d,%f\n", i, j, s[i][j]))
+			f.WriteString(fmt.Sprintf("%d,%d,%E\n", i, j, s[i][j]))
 		}
 	}
 

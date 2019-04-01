@@ -6,11 +6,13 @@ import (
 )
 
 var (
+	save2DIndex int
 	saveXYZIndex int // Stores the number of the next file to be written. Increments each time a file is written.
 	saveDWConfigIndex int
 )
 
 func init() {
+	DeclFunc("ext_save2D", save2D, "Save scalar slice of [][]float64 values")
 	DeclFunc("ext_saveVTK", saveVTK, "Save scalar slice of [][][]float64 values")
 	DeclFunc("ext_saveDWConfig", saveDWConfig, "Save domain wall configuration as csv.")
 }
@@ -104,4 +106,25 @@ func saveDWConfig(name string) {
 
 	f.Sync()
 	saveDWConfigIndex++
+}
+
+func save2D(s [][]float64, name string) {
+
+	// Find current working dir
+	f, err := os.Create(fmt.Sprintf(OD()+name+"%06d.csv", saveDWConfigIndex))
+	check(err)
+
+	// Write timestamp
+	f.WriteString(fmt.Sprintf("#time = %e\n", Time))
+	f.WriteString(fmt.Sprintf("i,j,value\n"))
+
+	// Write values
+	for i := range s {
+		for j := range s[i] {
+			f.WriteString(fmt.Sprintf("%d,%d,%f\n", i, j, s[i][j]))
+		}
+	}
+
+	f.Sync()
+	save2DIndex++
 }

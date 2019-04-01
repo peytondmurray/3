@@ -20,21 +20,33 @@ var (
 )
 
 func init() {
-	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(w, l, r, kind) sets the mask width to w, the sign of M which is being inserted at the left l and right r sides of the simulation, and the kind of DW position calculation ('zc' or 'avg').")
+	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(w, l, r) sets the mask width to w, the sign of M which is being inserted at the left l and right r sides of the simulation.")
+	DeclFunc("ext_dwactivityinitwidth", DWActivityInitWidth, "ext_dwactivityinitwidth(w, l, r, hw) sets the mask width to w, sign of M being inserted at left to l and right r sides of the simulation, and the domain wall width in cells.")
 	DeclFunc("ext_getphi", getPhi, "Get the current phi angle as a slice.")
 	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getphidot", getPhiDot, "Get the current phi angle as a slice.")
 	DeclFunc("ext_getthetadot", getThetaDot, "Get the current theta angle as a slice.")
+	DeclFunc("ext_getdwwidth2d", getDWWidth2D, "Get the domain wall width along each row.")
 }
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
 // of the domain wall are included in the domain wall activity
 func DWActivityInit(w int, l int, r int) {
+	expectedHalfWidth := IntRound(0.5 * getExpectedDWWidth() / Mesh().CellSize()[X])
+	DWActivityInitWidth(w, l, r, expectedHalfWidth)
+	return
+}
+
+// DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
+// of the domain wall are included in the domain wall activity.
+// The halfwidth is used for finding the domain wall thickness; increase this to include more fitting points across the
+// domain wall.
+func DWActivityInitWidth(w, l, r, hw int) {
 	DWMonitor.maskWidth = w
 	DWMonitor.signL = l
 	DWMonitor.signR = r
 	DWMonitor.initialized = false
-	DWMonitor.expectedHalfWidth = IntRound(0.5 * getExpectedDWWidth() / Mesh().CellSize()[X])
+	DWMonitor.expectedHalfWidth = hw
 	if DWMonitor.expectedHalfWidth < 1 {
 		panic("Warning: DW half-width is less than 1 cell; decrease your cell size!")
 	}
@@ -140,7 +152,7 @@ func (s *activityStack) init() {
 	// s.velZC = 0.0
 
 	// DWWidth
-	s.width = tanhFitDW(_m[Z], _intPosZC, s.expectedHalfWidth)
+	s.width = avg2D(tanhFitDW(_m[Z], _intPosZC, s.expectedHalfWidth))
 
 	return
 }
@@ -164,7 +176,7 @@ func (s *activityStack) push() {
 	// DWVel_________________________
 
 	// DWWidth_______________________
-	s.width = tanhFitDW(_m[Z], _intPosZC, s.expectedHalfWidth)
+	s.width = avg2D(tanhFitDW(_m[Z], _intPosZC, s.expectedHalfWidth))
 	// DWWidth_______________________
 
 	// Get new window and domain wall positions. Get the newest rxy, phi, theta values.
@@ -480,26 +492,66 @@ func interpolateZeroCrossing(mz []float32, i int) float32 {
 
 // tanh(a(x-x0)) ~ a(x-x0) - (1/3)(a(x-x0))^3 + (2/15)(a(x-x0))^5 + O(x^7)
 // approximate by fitting a line to the expected DW width using linear least squares
-func tanhFitDW(mz [][][]float32, intPos [][]int, halfWidth int) float64 {
-	c := Mesh().CellSize()
-	x := make([]float64, 2*halfWidth+1)
-	for i := range x {
-		x[i] = float64(i) * c[X]
-	}
+// func tanhFitDW(mz [][][]float32, intPos [][]int, halfWidth int) float64 {
+// 	c := Mesh().CellSize()
+// 	x := make([]float64, 2*halfWidth+1)
+// 	for i := range x {
+// 		x[i] = float64(i) * c[X]
+// 	}
 
-	width := float64(0)
-	for i := range mz {
-		for j := range mz[i] {
-			leftDWSide := intPos[i][j] - halfWidth
-			rightDWSide := intPos[i][j] + halfWidth
-			width += fitTanhDW1D(x, castFloat64(mz[i][j][leftDWSide:rightDWSide+1]))
+// 	width := float64(0)
+// 	for i := range mz {
+// 		for j := range mz[i] {
+// 			leftDWSide := intPos[i][j] - halfWidth
+// 			rightDWSide := intPos[i][j] + halfWidth + 1
+// 			width += inverseFitSlope(x, castFloat64(mz[i][j][leftDWSide:rightDWSide]))
+// 		}
+// 	}
+// 	return width / float64(len(intPos)*len(intPos[0]))
+// }
+
+func avg2D(a [][]float64) float64 {
+	ret := 0.0
+	for i := range a {
+		for j := range a[i] {
+			ret += a[i][j]
 		}
 	}
-	return width / float64(len(intPos)*len(intPos[0]))
+	return ret/float64(len(a)*len(a[0]))
 }
 
-func fitTanhDW1D(x []float64, mz []float64) float64 {
-	return math.Abs(float64(1) / fitSlope1D(x, mz))
+func tanhFitDW(mz [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
+	c := Mesh().CellSize()
+	N := MeshSize()
+
+	x := make([]float64, 2*halfwidth+1)
+	for i := range x {
+		x[i] = float64(i)*c[X]
+	}
+
+	width := make([][]float64, N[Z])
+	for i := range mz {
+		width[i] = make([]float64, N[Y])
+		for j := range mz[i] {
+			leftBound := intPos[i][j] - halfwidth
+			rightBound := intPos[i][j] + halfwidth + 1
+			width[i][j] = inverseFitSlope(x, AtanhFloat32(mz[i][j][leftBound:rightBound]))
+		}
+	}
+	return width
+}
+
+func AtanhFloat32(mz []float32) []float64 {
+
+	ret := make([]float64, len(mz))
+	for i := range mz {
+		ret[i] = math.Atanh(float64(mz[i]))
+	}
+	return ret
+}
+
+func inverseFitSlope(x, y []float64) float64 {
+	return math.Abs(float64(1) / fitSlope1D(x, y))
 }
 
 func getExpectedDWWidth() float64 {
@@ -547,4 +599,10 @@ func castFloat64(s []float32) []float64 {
 		ret[i] = float64(s[i])
 	}
 	return ret
+}
+
+func getDWWidth2D() [][]float64 {
+	_m := M.Buffer().HostCopy().Vectors()
+	_intPosZC := getIntDWPos(_m[Z])
+	return tanhFitDW(_m[Z], _intPosZC, DWMonitor.expectedHalfWidth)
 }

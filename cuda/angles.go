@@ -6,7 +6,7 @@ import (
 )
 
 // Set s to the azimuthal angle phi
-// See angles.cu
+// See phi.cu
 func SetPhi(s *data.Slice, m *data.Slice) {
 	N := s.Size()
 	util.Argument(m.Size() == N)
@@ -18,7 +18,7 @@ func SetPhi(s *data.Slice, m *data.Slice) {
 }
 
 // Set s to the polar angle theta
-// See angles.cu
+// See theta.cu
 func SetTheta(s *data.Slice, m *data.Slice) {
 	N := s.Size()
 	util.Argument(m.Size() == N)

@@ -74,6 +74,7 @@ type activityStack struct {
 	phidot      [][][]float64
 	thetadot    [][][]float64
 	t           float64
+	lastStep	int
 	maskWidth   int
 	Az          float64
 	Axy         float64
@@ -83,7 +84,7 @@ type activityStack struct {
 func (s *activityStack) update() {
 	if !s.initialized {
 		s.init()
-	} else if s.t != Time {
+	} else if s.t != Time || s.lastStep != NSteps {
 		s.push()
 	}
 	return
@@ -122,6 +123,7 @@ func (s *activityStack) init() {
 	_m := M.Buffer().HostCopy().Vectors()
 
 	s.t = Time
+	s.lastStep = NSteps
 	s.windowpos = GetIntWindowPos()
 	s.dwpos = GetNearestIntDWPos(_m[Z])
 	s.rxy, s.phi, s.theta = rxyPhiTheta(_m)
@@ -178,6 +180,7 @@ func (s *activityStack) push() {
 	s.phi = _phi
 	s.theta = _theta
 	s.t = _t
+	s.lastStep = NSteps
 	s.phidot = _phidot
 	s.thetadot = _thetadot
 
@@ -228,31 +231,34 @@ func rxyPhiTheta(m [3][][][]float32) ([][][]float64, [][][]float64, [][][]float6
 
 	n := MeshSize()
 
-	// _rxy := make([][][]float64, n[Z])
-	// _phi := make([][][]float64, n[Z])
-	// _theta := make([][][]float64, n[Z])
+	// __rxy := GetRxy().HostCopy()//.Scalars()
+	// __phi := GetPhi().HostCopy()//.Scalars()
+	// __theta := GetTheta().HostCopy()//.Scalars()
 
-	// for k := 0; k < n[Z]; k++ {
-	// 	_rxy[k] = make([][]float64, n[Y])
-	// 	_phi[k] = make([][]float64, n[Y])
-	// 	_theta[k] = make([][]float64, n[Y])
+	_rxy := make([][][]float64, n[Z])
+	_phi := make([][][]float64, n[Z])
+	_theta := make([][][]float64, n[Z])
 
-	// 	for j := 0; j < n[Y]; j++ {
-	// 		_rxy[k][j] = make([]float64, n[X])
-	// 		_phi[k][j] = make([]float64, n[X])
-	// 		_theta[k][j] = make([]float64, n[X])
+	for k := 0; k < n[Z]; k++ {
+		_rxy[k] = make([][]float64, n[Y])
+		_phi[k] = make([][]float64, n[Y])
+		_theta[k] = make([][]float64, n[Y])
 
-	// 		for i := 0; i < n[X]; i++ {
-	// 			_rxy[k][j][i] = rxy(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-	// 			_phi[k][j][i] = phi(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-	// 			_theta[k][j][i] = theta(float64(m[Z][k][j][i]))
-	// 		}
-	// 	}
-	// }
+		for j := 0; j < n[Y]; j++ {
+			_rxy[k][j] = make([]float64, n[X])
+			_phi[k][j] = make([]float64, n[X])
+			_theta[k][j] = make([]float64, n[X])
 
-	_rxy := GetRxy()
-	_phi := GetPhi()
-	_theta := GetTheta()
+			for i := 0; i < n[X]; i++ {
+				_rxy[k][j][i] = rxy(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
+				_phi[k][j][i] = phi(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
+				_theta[k][j][i] = theta(float64(m[Z][k][j][i]))
+				// _rxy[k][j][i] = float64(__rxy[k][j][i])
+				// _phi[k][j][i] = float64(__phi[k][j][i])
+				// _theta[k][j][i] = float64(__theta[k][j][i])
+			}
+		}
+	}
 
 	return _rxy, _phi, _theta
 }

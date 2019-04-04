@@ -8,6 +8,7 @@ import (
 var (
 	ext_phi   = NewScalarField("ext_phi", "rad", "Azimuthal angle phi", SetPhiAngle)
 	ext_theta = NewScalarField("ext_theta", "rad", "Polar angle theta", SetThetaAngle)
+	ext_rxy   = NewScalarField("ext_rxy", "m", "Magnitude of m in the xy plane", SetRxyMagnitude)
 )
 
 func SetPhiAngle(dst *data.Slice) {
@@ -18,4 +19,27 @@ func SetPhiAngle(dst *data.Slice) {
 func SetThetaAngle(dst *data.Slice) {
 	cuda.SetTheta(dst, M.Buffer())
 	return
+}
+
+func SetRxyMagnitude(dst *data.Slice) {
+	cuda.SetRxy(dst, M.Buffer())
+	return
+}
+
+func GetPhi() *data.Slice {
+	s := ValueOf(ext_phi)
+	defer cuda.Recycle(s)
+	return s
+}
+
+func GetTheta() *data.Slice {
+	s := ValueOf(ext_theta)
+	defer cuda.Recycle(s)
+	return s
+}
+
+func GetRxy() *data.Slice {
+	s := ValueOf(ext_rxy)
+	defer cuda.Recycle(s)
+	return s
 }

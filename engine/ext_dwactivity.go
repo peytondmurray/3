@@ -4,7 +4,7 @@ import (
 	"github.com/mumax/3/mag"
 	// "log"
 	// "fmt"
-	// "github.com/mumax/3/data"
+	// "github.com/mumax/3/cuda"
 	"math"
 )
 
@@ -12,9 +12,7 @@ var (
 	Az            = NewScalarValue("ext_az", "rad/s", "Out-of-plane domain wall activity", getAz)
 	Axy           = NewScalarValue("ext_axy", "rad/s", "In-plane domain wall activity", getAxy)
 	ExactDWVelAvg = NewScalarValue("ext_exactdwvelavg", "m/s", "Speed of domain wall", getExactVelAvg)
-	ExactDWVelZC  = NewScalarValue("ext_exactdwvelzc", "m/s", "Speed of domain wall", getExactVelZC)
 	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
-	ExactDWPosZC  = NewScalarValue("ext_exactdwposzc", "m", "Position of domain wall from start", getExactPosZC)
 	DWWidth       = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", getDWWidth)
 	DWMonitor     activityStack // Most recent positions of DW speed
 )
@@ -63,9 +61,7 @@ type activityStack struct {
 
 	// DWVel
 	posAvg float64
-	posZC  float64
 	velAvg float64
-	velZC  float64
 
 	// DWActivity
 	signL       int
@@ -98,19 +94,9 @@ func getExactPosAvg() float64 {
 	return DWMonitor.posAvg
 }
 
-func getExactPosZC() float64 {
-	DWMonitor.update()
-	return DWMonitor.posZC
-}
-
 func getExactVelAvg() float64 {
 	DWMonitor.update()
 	return DWMonitor.velAvg
-}
-
-func getExactVelZC() float64 {
-	DWMonitor.update()
-	return DWMonitor.velZC
 }
 
 func getAz() float64 {
@@ -145,11 +131,8 @@ func (s *activityStack) init() {
 
 	// DWVel
 	_intPosZC := getIntDWPos(_m[Z])
-	// s.posAvg = exactPosAvg(_m[Z])
 	s.posAvg = exactPosAvg()
-	// s.posZC = exactPosZC(_m[Z], _intPosZC)
 	s.velAvg = 0.0
-	// s.velZC = 0.0
 
 	// DWWidth
 	s.width = avg2D(tanhFitDW(_m[Z], _intPosZC, s.expectedHalfWidth))
@@ -166,13 +149,9 @@ func (s *activityStack) push() {
 
 	// DWVel_________________________
 	_intPosZC := getIntDWPos(_m[Z])
-	// _posAvg := exactPosAvg(_m[Z])
 	_posAvg := exactPosAvg()
-	// _posZC := exactPosZC(_m[Z], _intPosZC)
 	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
-	// s.velZC = (_posZC - s.posZC) / (_t - s.t)
 	s.posAvg = _posAvg
-	// s.posZC = _posZC
 	// DWVel_________________________
 
 	// DWWidth_______________________
@@ -249,27 +228,32 @@ func rxyPhiTheta(m [3][][][]float32) ([][][]float64, [][][]float64, [][][]float6
 
 	n := MeshSize()
 
-	_rxy := make([][][]float64, n[Z])
-	_phi := make([][][]float64, n[Z])
-	_theta := make([][][]float64, n[Z])
+	// _rxy := make([][][]float64, n[Z])
+	// _phi := make([][][]float64, n[Z])
+	// _theta := make([][][]float64, n[Z])
 
-	for k := 0; k < n[Z]; k++ {
-		_rxy[k] = make([][]float64, n[Y])
-		_phi[k] = make([][]float64, n[Y])
-		_theta[k] = make([][]float64, n[Y])
+	// for k := 0; k < n[Z]; k++ {
+	// 	_rxy[k] = make([][]float64, n[Y])
+	// 	_phi[k] = make([][]float64, n[Y])
+	// 	_theta[k] = make([][]float64, n[Y])
 
-		for j := 0; j < n[Y]; j++ {
-			_rxy[k][j] = make([]float64, n[X])
-			_phi[k][j] = make([]float64, n[X])
-			_theta[k][j] = make([]float64, n[X])
+	// 	for j := 0; j < n[Y]; j++ {
+	// 		_rxy[k][j] = make([]float64, n[X])
+	// 		_phi[k][j] = make([]float64, n[X])
+	// 		_theta[k][j] = make([]float64, n[X])
 
-			for i := 0; i < n[X]; i++ {
-				_rxy[k][j][i] = rxy(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-				_phi[k][j][i] = phi(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-				_theta[k][j][i] = theta(float64(m[Z][k][j][i]))
-			}
-		}
-	}
+	// 		for i := 0; i < n[X]; i++ {
+	// 			_rxy[k][j][i] = rxy(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
+	// 			_phi[k][j][i] = phi(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
+	// 			_theta[k][j][i] = theta(float64(m[Z][k][j][i]))
+	// 		}
+	// 	}
+	// }
+
+	_rxy := GetRxy()
+	_phi := GetPhi()
+	_theta := GetTheta()
+
 	return _rxy, _phi, _theta
 }
 
@@ -517,7 +501,7 @@ func avg2D(a [][]float64) float64 {
 			ret += a[i][j]
 		}
 	}
-	return ret/float64(len(a)*len(a[0]))
+	return ret / float64(len(a)*len(a[0]))
 }
 
 func tanhFitDW(mz [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
@@ -526,7 +510,7 @@ func tanhFitDW(mz [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
 
 	x := make([]float64, 2*halfwidth+1)
 	for i := range x {
-		x[i] = float64(i)*c[X]
+		x[i] = float64(i) * c[X]
 	}
 
 	width := make([][]float64, N[Z])

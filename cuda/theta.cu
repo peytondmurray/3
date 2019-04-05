@@ -2,8 +2,8 @@
 
 extern "C" __global__ void
 settheta(float* __restrict__ s,
-    float* __restrict__ mx, float* __restrict__ my,float* __restrict__ mz,
-    int Nx, int Ny, int Nz) {
+         float* __restrict__ mx, float* __restrict__ my,float* __restrict__ mz,
+         int Nx, int Ny, int Nz) {
 
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iy = blockIdx.y * blockDim.y + threadIdx.y;

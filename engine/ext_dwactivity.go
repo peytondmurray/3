@@ -74,7 +74,7 @@ type activityStack struct {
 	phidot      [][][]float64
 	thetadot    [][][]float64
 	t           float64
-	lastStep	int
+	lastStep    int
 	maskWidth   int
 	Az          float64
 	Axy         float64
@@ -231,9 +231,9 @@ func rxyPhiTheta(m [3][][][]float32) ([][][]float64, [][][]float64, [][][]float6
 
 	n := MeshSize()
 
-	// __rxy := GetRxy().HostCopy()//.Scalars()
-	// __phi := GetPhi().HostCopy()//.Scalars()
-	// __theta := GetTheta().HostCopy()//.Scalars()
+	__rxy := ext_rxy.HostCopy().Scalars()
+	__phi := ext_phi.HostCopy().Scalars()
+	__theta := ext_theta.HostCopy().Scalars()
 
 	_rxy := make([][][]float64, n[Z])
 	_phi := make([][][]float64, n[Z])
@@ -250,12 +250,13 @@ func rxyPhiTheta(m [3][][][]float32) ([][][]float64, [][][]float64, [][][]float6
 			_theta[k][j] = make([]float64, n[X])
 
 			for i := 0; i < n[X]; i++ {
-				_rxy[k][j][i] = rxy(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-				_phi[k][j][i] = phi(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-				_theta[k][j][i] = theta(float64(m[Z][k][j][i]))
-				// _rxy[k][j][i] = float64(__rxy[k][j][i])
-				// _phi[k][j][i] = float64(__phi[k][j][i])
-				// _theta[k][j][i] = float64(__theta[k][j][i])
+				// _rxy[k][j][i] = rxy(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
+				// _phi[k][j][i] = phi(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
+				// _theta[k][j][i] = theta(float64(m[Z][k][j][i]))
+
+				_rxy[k][j][i] = float64(__rxy[k][j][i])
+				_phi[k][j][i] = float64(__phi[k][j][i])
+				_theta[k][j][i] = float64(__theta[k][j][i])
 			}
 		}
 	}

@@ -30,7 +30,7 @@ func init() {
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
 // of the domain wall are included in the domain wall activity
 func DWActivityInit(w int, l int, r int) {
-	expectedHalfWidth := IntRound(0.5 * getExpectedDWWidth() / Mesh().CellSize()[X])
+	expectedHalfWidth := IntRound(0.5 * getExpectedDWWidth() / float32(Mesh().CellSize()[X]))
 	DWActivityInitWidth(w, l, r, expectedHalfWidth)
 	return
 }
@@ -60,24 +60,24 @@ type activityStack struct {
 	width float64
 
 	// DWVel
-	posAvg float64
-	velAvg float64
+	posAvg float32
+	velAvg float32
 
 	// DWActivity
 	signL       int
 	signR       int
 	windowpos   int
 	dwpos       [][]int
-	rxy         [][][]float64
-	phi         [][][]float64
-	theta       [][][]float64
-	phidot      [][][]float64
-	thetadot    [][][]float64
+	rxy         [][][]float32
+	phi         [][][]float32
+	theta       [][][]float32
+	phidot      [][][]float32
+	thetadot    [][][]float32
 	t           float64
 	lastStep    int
 	maskWidth   int
-	Az          float64
-	Axy         float64
+	Az          float32
+	Axy         float32
 	initialized bool
 }
 
@@ -92,27 +92,27 @@ func (s *activityStack) update() {
 
 func getExactPosAvg() float64 {
 	DWMonitor.update()
-	return DWMonitor.posAvg
+	return float64(DWMonitor.posAvg)
 }
 
 func getExactVelAvg() float64 {
 	DWMonitor.update()
-	return DWMonitor.velAvg
+	return float64(DWMonitor.velAvg)
 }
 
 func getAz() float64 {
 	DWMonitor.update()
-	return DWMonitor.Az
+	return float64(DWMonitor.Az)
 }
 
 func getAxy() float64 {
 	DWMonitor.update()
-	return DWMonitor.Axy
+	return float64(DWMonitor.Axy)
 }
 
 func getDWWidth() float64 {
 	DWMonitor.update()
-	return DWMonitor.width
+	return float64(DWMonitor.width)
 }
 
 func (s *activityStack) lastTime() float64 {
@@ -120,24 +120,27 @@ func (s *activityStack) lastTime() float64 {
 }
 
 func (s *activityStack) init() {
-	_m := M.Buffer().HostCopy().Vectors()
+	_rpt := ext_rxyphitheta.HostCopy().Vectors()
 
 	s.t = Time
 	s.lastStep = NSteps
 	s.windowpos = GetIntWindowPos()
-	s.dwpos = GetNearestIntDWPos(_m[Z])
-	s.rxy, s.phi, s.theta = rxyPhiTheta(_m)
+
+	_intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
+	s.posAvg = exactPosAvg()
+	s.velAvg = 0.0
+	s.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
+
+	s.rxy = _rpt[0]
+	s.phi = _rpt[1]
+	s.theta = _rpt[2]
+
 	s.phidot = ZeroWorld()
 	s.thetadot = ZeroWorld()
 	s.initialized = true
 
-	// DWVel
-	_intPosZC := getIntDWPos(_m[Z])
-	s.posAvg = exactPosAvg()
-	s.velAvg = 0.0
-
 	// DWWidth
-	s.width = avg2D(tanhFitDW(_m[Z], _intPosZC, s.expectedHalfWidth))
+	s.width = avg2D(tanhFitDW(_rpt[2], _intPosZC, s.expectedHalfWidth))
 
 	return
 }
@@ -146,28 +149,28 @@ func (s *activityStack) push() {
 
 	// Update the DW and window positions; put new values of the angles into the new slots.
 	// Get the new magnetization configuration
-	_m := M.Buffer().HostCopy().Vectors()
+	_rpt := ext_rxyphitheta.HostCopy().Vectors()
+
 	_t := Time
 
 	// DWVel_________________________
-	_intPosZC := getIntDWPos(_m[Z])
+	_intPosZC := getIntDWPos(_rpt[2])
 	_posAvg := exactPosAvg()
-	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
+	s.velAvg = (_posAvg - s.posAvg) / float32(_t-s.t)
 	s.posAvg = _posAvg
 	// DWVel_________________________
 
 	// DWWidth_______________________
-	s.width = avg2D(tanhFitDW(_m[Z], _intPosZC, s.expectedHalfWidth))
+	s.width = avg2D(tanhFitDW(_rpt[2], _intPosZC, s.expectedHalfWidth))
 	// DWWidth_______________________
 
 	// Get new window and domain wall positions. Get the newest rxy, phi, theta values.
 	_windowpos := GetIntWindowPos()
-	_dwpos := GetNearestIntDWPos(_m[Z])
-	_rxy, _phi, _theta := rxyPhiTheta(_m)
+	_dwpos := GetNearestIntDWPos(_rpt[2], _intPosZC)
 
-	_rxyAvg := averageRxy(_rxy, s.rxy)
-	_phidot := angularVel(_phi, s.phi, _windowpos, s.windowpos, _t, s.t)
-	_thetadot := angularVel(_theta, s.theta, _windowpos, s.windowpos, _t, s.t)
+	_rxyAvg := averageRxy(_rpt[0], s.rxy)
+	_phidot := angularVel(_rpt[1], s.phi, _windowpos, s.windowpos, _t, s.t)
+	_thetadot := angularVel(_rpt[2], s.theta, _windowpos, s.windowpos, _t, s.t)
 
 	// Calculate Axy and Az by summing the angular velocity of the cells which were near the domain wall at the
 	// last step (i.e., within maskWidth cells of the old dwpos).
@@ -176,9 +179,9 @@ func (s *activityStack) push() {
 
 	s.windowpos = _windowpos
 	s.dwpos = _dwpos
-	s.rxy = _rxy
-	s.phi = _phi
-	s.theta = _theta
+	s.rxy = _rpt[0]
+	s.phi = _rpt[1]
+	s.theta = _rpt[2]
 	s.t = _t
 	s.lastStep = NSteps
 	s.phidot = _phidot
@@ -189,7 +192,7 @@ func (s *activityStack) push() {
 
 // Calculate the change in angle for two angles, taking into account the fact that 2*pi = 0. If the difference in angles
 // (a-b) is large, the vector is assumed to have wrapped around this boundary.
-func deltaAngle(a, b float64) float64 {
+func deltaAngle(a, b float32) float32 {
 	dA := a - b
 	if dA < -math.Pi {
 		return 2*math.Pi + dA
@@ -199,10 +202,10 @@ func deltaAngle(a, b float64) float64 {
 	return dA
 }
 
-func calcAxy(phiDot, rxyAvg [][][]float64, dwpos [][]int, maskWidth int) float64 {
+func calcAxy(phiDot, rxyAvg [][][]float32, dwpos [][]int, maskWidth int) float32 {
 
 	n := MeshSize()
-	ret := float64(0)
+	ret := float32(0)
 	for i := 0; i < n[Z]; i++ {
 		for j := 0; j < n[Y]; j++ {
 			for k := dwpos[i][j] - maskWidth; k < dwpos[i][j]+maskWidth+1; k++ {
@@ -213,10 +216,10 @@ func calcAxy(phiDot, rxyAvg [][][]float64, dwpos [][]int, maskWidth int) float64
 	return ret
 }
 
-func calcAz(thetaDot [][][]float64, dwpos [][]int, maskWidth int) float64 {
+func calcAz(thetaDot [][][]float32, dwpos [][]int, maskWidth int) float32 {
 
 	n := MeshSize()
-	ret := float64(0)
+	ret := float32(0)
 	for i := 0; i < n[Z]; i++ {
 		for j := 0; j < n[Y]; j++ {
 			for k := dwpos[i][j] - maskWidth; k < dwpos[i][j]+maskWidth+1; k++ {
@@ -227,103 +230,87 @@ func calcAz(thetaDot [][][]float64, dwpos [][]int, maskWidth int) float64 {
 	return ret
 }
 
-func rxyPhiTheta(m [3][][][]float32) ([][][]float64, [][][]float64, [][][]float64) {
-
-	n := MeshSize()
-
-	__rxy := ext_rxy.HostCopy().Scalars()
-	__phi := ext_phi.HostCopy().Scalars()
-	__theta := ext_theta.HostCopy().Scalars()
-
-	_rxy := make([][][]float64, n[Z])
-	_phi := make([][][]float64, n[Z])
-	_theta := make([][][]float64, n[Z])
-
-	for k := 0; k < n[Z]; k++ {
-		_rxy[k] = make([][]float64, n[Y])
-		_phi[k] = make([][]float64, n[Y])
-		_theta[k] = make([][]float64, n[Y])
-
-		for j := 0; j < n[Y]; j++ {
-			_rxy[k][j] = make([]float64, n[X])
-			_phi[k][j] = make([]float64, n[X])
-			_theta[k][j] = make([]float64, n[X])
-
-			for i := 0; i < n[X]; i++ {
-				// _rxy[k][j][i] = rxy(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-				// _phi[k][j][i] = phi(float64(m[X][k][j][i]), float64(m[Y][k][j][i]))
-				// _theta[k][j][i] = theta(float64(m[Z][k][j][i]))
-
-				_rxy[k][j][i] = float64(__rxy[k][j][i])
-				_phi[k][j][i] = float64(__phi[k][j][i])
-				_theta[k][j][i] = float64(__theta[k][j][i])
-			}
-		}
-	}
-
-	return _rxy, _phi, _theta
+func rxyPhiTheta(m [3][][][]float32) ([][][]float32, [][][]float32, [][][]float32) {
+	_rxyphitheta := ext_rxyphitheta.HostCopy().Vectors()
+	return _rxyphitheta[X], _rxyphitheta[Y], _rxyphitheta[Z]
 }
 
-func rxy(mx float64, my float64) float64 {
-	return math.Sqrt(float64(mx*mx + my*my))
+func rxy(mx float32, my float32) float32 {
+	return float32(math.Sqrt(float64(mx*mx + my*my)))
 }
 
-func phi(mx float64, my float64) float64 {
-	return math.Atan2(float64(my), float64(mx))
+func phi(mx float32, my float32) float32 {
+	return float32(math.Atan2(float64(my), float64(mx)))
 }
 
-func theta(mz float64) float64 {
-	return math.Acos(float64(mz))
+func theta(mz float32) float32 {
+	return float32(math.Acos(float64(mz)))
 }
 
-func getPhi() [][][]float64 {
+func getPhi() [][][]float32 {
 	return DWMonitor.phi
 }
 
-func getTheta() [][][]float64 {
+func getTheta() [][][]float32 {
 	return DWMonitor.theta
 }
 
-func IntRound(x float64) int {
+func IntRound(x float32) int {
 	return int(x + 0.5)
 }
 
 // Get the indices of the domain wall within the simulation window.
-func GetNearestIntDWPos(mz [][][]float32) [][]int {
+// func GetNearestIntDWPos(theta [][][]float32) [][]int {
 
-	n := MeshSize()
-	pos := make([][]int, n[Z])
+// 	n := MeshSize()
+// 	pos := make([][]int, n[Z])
 
-	for i := 0; i < len(mz); i++ {
-		pos[i] = make([]int, n[Y])
-		for j := 0; j < n[Y]; j++ {
-			pos[i][j] = getNearestIntDWPos1D(mz[i][j])
+// 	for i := range theta {
+// 		pos[i] = make([]int, n[Y])
+// 		for j := range theta[i] {
+// 			pos[i][j] = getNearestIntDWPos1D(theta[i][j])
+// 		}
+// 	}
+// 	return pos
+// }
+
+// // Find the index of the element nearest to the domain wall.
+// func getNearestIntDWPos1D(theta []float32) int {
+// 	ix := zeroCrossing(theta)
+// 	if math.Abs(math.Cos(float64(theta[ix-1]))) < math.Abs(math.Cos(float64(theta[ix]))) {
+// 		return ix - 1
+// 	}
+// 	return ix
+// }
+
+func GetNearestIntDWPos(theta [][][]float32, dw [][]int) [][]int {
+
+	nearest := make([][]int, len(dw))
+	for i := range theta {
+		nearest[i] = make([]int, len(dw[i]))
+		for j := range theta[i] {
+			if sign64(math.Cos(float64(theta[i][j][dw[i][j]-1]))) == DWMonitor.signL && sign64(math.Cos(float64(theta[i][j][dw[i][j]]))) == DWMonitor.signR {
+				nearest[i][j] = dw[i][j] - 1
+			} else {
+				nearest[i][j] = dw[i][j]
+			}
 		}
 	}
-	return pos
-}
-
-// Find the index of the element nearest to the domain wall.
-func getNearestIntDWPos1D(mz []float32) int {
-	ix := zeroCrossing(mz)
-	if math.Abs(float64(mz[ix-1])) < math.Abs(float64(mz[ix])) {
-		return ix - 1
-	}
-	return ix
+	return nearest
 }
 
 // Find the index of the 1D slice just before the zero crossing of the Mz component. Check from right to left;
 // since bubbles will only be forming to the left, and we will not be susceptible to them with this method.
-func zeroCrossing(mz []float32) int {
-	for ix := len(mz) - 1; ix > 1; ix-- {
-		if sign32(mz[ix-1]) == DWMonitor.signL && sign32(mz[ix]) == DWMonitor.signR {
+func zeroCrossing(theta []float32) int {
+	for ix := len(theta) - 1; ix > 1; ix-- {
+		if sign64(math.Cos(float64(theta[ix-1]))) == DWMonitor.signL && sign64(math.Cos(float64(theta[ix]))) == DWMonitor.signR {
 			return ix - 1
 		}
 	}
 	panic("Can't find domain wall position")
 }
 
-func sign32(a float32) int {
+func sign64(a float64) int {
 	if a < 0 {
 		return -1
 	}
@@ -334,22 +321,22 @@ func sign32(a float32) int {
 func GetIntWindowPos() int {
 	c := Mesh().CellSize()
 	windowPos := GetShiftPos()
-	return IntRound(windowPos / c[Y])
+	return IntRound(float32(windowPos) / float32(c[Y]))
 }
 
-func angularVel(aNew, aOld [][][]float64, windowposNew, windowposOld int, tNew, tOld float64) [][][]float64 {
+func angularVel(aNew, aOld [][][]float32, windowposNew, windowposOld int, tNew, tOld float64) [][][]float32 {
 
 	shift := windowposNew - windowposOld
-	dt := tNew - tOld
+	dt := float32(tNew - tOld)
 	n := MeshSize()
 
-	ret := make([][][]float64, n[Z])
+	ret := make([][][]float32, n[Z])
 
 	if shift >= 0 {
 		for i := 0; i < n[Z]; i++ {
-			ret[i] = make([][]float64, n[Y])
+			ret[i] = make([][]float32, n[Y])
 			for j := 0; j < n[Y]; j++ {
-				ret[i][j] = make([]float64, n[X])
+				ret[i][j] = make([]float32, n[X])
 				for k := 0; k < n[X]-shift; k++ {
 					ret[i][j][k] = deltaAngle(aNew[i][j][k], aOld[i][j][k+shift]) / dt
 				}
@@ -357,9 +344,9 @@ func angularVel(aNew, aOld [][][]float64, windowposNew, windowposOld int, tNew, 
 		}
 	} else {
 		for i := 0; i < n[Z]; i++ {
-			ret[i] = make([][]float64, n[Y])
+			ret[i] = make([][]float32, n[Y])
 			for j := 0; j < n[Y]; j++ {
-				ret[i][j] = make([]float64, n[X])
+				ret[i][j] = make([]float32, n[X])
 				for k := -shift; k < n[X]; k++ {
 					ret[i][j][k] = deltaAngle(aNew[i][j][k], aOld[i][j][k+shift]) / dt
 				}
@@ -370,15 +357,15 @@ func angularVel(aNew, aOld [][][]float64, windowposNew, windowposOld int, tNew, 
 }
 
 // Make a slice the same size as the simulation, initialized with zeros.
-func ZeroWorld() [][][]float64 {
+func ZeroWorld() [][][]float32 {
 
 	n := MeshSize()
 
-	ret := make([][][]float64, n[Z])
+	ret := make([][][]float32, n[Z])
 	for i := 0; i < n[Z]; i++ {
-		ret[i] = make([][]float64, n[Y])
+		ret[i] = make([][]float32, n[Y])
 		for j := 0; j < n[Y]; j++ {
-			ret[i][j] = make([]float64, n[X])
+			ret[i][j] = make([]float32, n[X])
 			for k := 0; k < n[X]; k++ {
 				ret[i][j][k] = 0
 			}
@@ -387,23 +374,23 @@ func ZeroWorld() [][][]float64 {
 	return ret
 }
 
-func getPhiDot() [][][]float64 {
+func getPhiDot() [][][]float32 {
 	return DWMonitor.phidot
 }
 
-func getThetaDot() [][][]float64 {
+func getThetaDot() [][][]float32 {
 	return DWMonitor.thetadot
 }
 
 // Find the average of old and new rxy slices.
-func averageRxy(rxyNew, rxyOld [][][]float64) [][][]float64 {
+func averageRxy(rxyNew, rxyOld [][][]float32) [][][]float32 {
 	n := MeshSize()
 
-	ret := make([][][]float64, n[Z])
+	ret := make([][][]float32, n[Z])
 	for i := 0; i < n[Z]; i++ {
-		ret[i] = make([][]float64, n[Y])
+		ret[i] = make([][]float32, n[Y])
 		for j := 0; j < n[Y]; j++ {
-			ret[i][j] = make([]float64, n[X])
+			ret[i][j] = make([]float32, n[X])
 			for k := 0; k < n[X]; k++ {
 				ret[i][j][k] = 0.5 * (rxyNew[i][j][k] + rxyOld[i][j][k])
 			}
@@ -413,24 +400,24 @@ func averageRxy(rxyNew, rxyOld [][][]float64) [][][]float64 {
 }
 
 // func exactPosAvg(mz [][][]float32) float64 {
-func exactPosAvg() float64 {
+func exactPosAvg() float32 {
 
 	ws := Mesh().WorldSize()
 
 	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function. They don't return
 	// exactly the same values, however...?
 	// avg := avgMz(mz)
-	avg := M.Comp(Z).Average()
+	avg := float32(M.Comp(Z).Average())
 
 	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
 	// 50% are flipped up, the DW is 50% from the left side of the simulation window
 	pct := 1.0 - (1.0-avg)/2.0
 
 	// Convert to actual position in window, then add on window shift
-	return pct*ws[X] + GetShiftPos()
+	return pct*float32(ws[X]) + float32(GetShiftPos())
 }
 
-func avgMz(mz [][][]float32) float64 {
+func avgMz(mz [][][]float32) float32 {
 	n := MeshSize()
 	sum := float32(0.0)
 	for i := range mz {
@@ -440,39 +427,39 @@ func avgMz(mz [][][]float32) float64 {
 			}
 		}
 	}
-	return float64(sum) / float64(n[X]*n[Y]*n[Z])
+	return sum / float32(n[X]*n[Y]*n[Z])
 }
 
 // Get the exact position of the domain wall from the zero crossing of Mz.
-func exactPosZC(mz [][][]float32, intPosZC [][]int) float64 {
+func exactPosZC(mz [][][]float32, intPosZC [][]int) float32 {
 	c := Mesh().CellSize()
-	return exactPosInWindow(mz, intPosZC)*c[X] + GetShiftPos()
+	return exactPosInWindow(mz, intPosZC)*float32(c[X]) + float32(GetShiftPos())
 }
 
 // Get the indices on the left side of the domain wall within the simulation window.
-func getIntDWPos(mz [][][]float32) [][]int {
+func getIntDWPos(theta [][][]float32) [][]int {
 
 	n := MeshSize()
 	pos := make([][]int, n[Z])
 
-	for i := 0; i < len(mz); i++ {
+	for i := range theta {
 		pos[i] = make([]int, n[Y])
-		for j := 0; j < n[Y]; j++ {
-			pos[i][j] = zeroCrossing(mz[i][j]) // Defined in ext_dwactivity.go
+		for j := range theta[i] {
+			pos[i][j] = zeroCrossing(theta[i][j])
 		}
 	}
 	return pos
 }
 
 // Find the exact average DW position in the simulation space in units of Mesh().CellSize()[X]
-func exactPosInWindow(mz [][][]float32, intPos [][]int) float64 {
-	pos := float64(0)
+func exactPosInWindow(mz [][][]float32, intPos [][]int) float32 {
+	pos := float32(0.0)
 	for iz := range mz {
 		for iy := range mz[iz] {
-			pos += float64(interpolateZeroCrossing(mz[iz][iy], intPos[iz][iy]))
+			pos += interpolateZeroCrossing(mz[iz][iy], intPos[iz][iy])
 		}
 	}
-	return pos / float64(len(intPos)*len(intPos[0]))
+	return pos / float32(len(intPos)*len(intPos[0]))
 }
 
 // Interpolate the index of the 1D slice wehre the zero crossing of the Mz component occurs, between x-index i and i+1.
@@ -480,26 +467,6 @@ func exactPosInWindow(mz [][][]float32, intPos [][]int) float64 {
 func interpolateZeroCrossing(mz []float32, i int) float32 {
 	return float32(i) - (mz[i] / (mz[i+1] - mz[i]))
 }
-
-// tanh(a(x-x0)) ~ a(x-x0) - (1/3)(a(x-x0))^3 + (2/15)(a(x-x0))^5 + O(x^7)
-// approximate by fitting a line to the expected DW width using linear least squares
-// func tanhFitDW(mz [][][]float32, intPos [][]int, halfWidth int) float64 {
-// 	c := Mesh().CellSize()
-// 	x := make([]float64, 2*halfWidth+1)
-// 	for i := range x {
-// 		x[i] = float64(i) * c[X]
-// 	}
-
-// 	width := float64(0)
-// 	for i := range mz {
-// 		for j := range mz[i] {
-// 			leftDWSide := intPos[i][j] - halfWidth
-// 			rightDWSide := intPos[i][j] + halfWidth + 1
-// 			width += inverseFitSlope(x, castFloat64(mz[i][j][leftDWSide:rightDWSide]))
-// 		}
-// 	}
-// 	return width / float64(len(intPos)*len(intPos[0]))
-// }
 
 func avg2D(a [][]float64) float64 {
 	ret := 0.0
@@ -511,7 +478,11 @@ func avg2D(a [][]float64) float64 {
 	return ret / float64(len(a)*len(a[0]))
 }
 
-func tanhFitDW(mz [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
+// func tanhFitDW(mz [][][]float32, intPos [][]int, halfwidth int) [][]float32 {
+
+// Fit a tanh function to each row of mz; returns a float64 since golang's math functions only operate only on
+// float64.
+func tanhFitDW(theta [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
 	c := Mesh().CellSize()
 	N := MeshSize()
 
@@ -521,35 +492,35 @@ func tanhFitDW(mz [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
 	}
 
 	width := make([][]float64, N[Z])
-	for i := range mz {
+	for i := range theta {
 		width[i] = make([]float64, N[Y])
-		for j := range mz[i] {
+		for j := range theta[i] {
 			leftBound := intPos[i][j] - halfwidth
 			rightBound := intPos[i][j] + halfwidth + 1
-			width[i][j] = inverseFitSlope(x, AtanhFloat32(mz[i][j][leftBound:rightBound]))
+			width[i][j] = inverseFitSlope(x, AtanhCos32_to_64(theta[i][j][leftBound:rightBound]))
 		}
 	}
 	return width
 }
 
-func AtanhFloat32(mz []float32) []float64 {
+func AtanhCos32_to_64(theta []float32) []float64 {
 
-	ret := make([]float64, len(mz))
-	for i := range mz {
-		ret[i] = math.Atanh(float64(mz[i]))
+	ret := make([]float64, len(theta))
+	for i := range theta {
+		ret[i] = math.Atanh(math.Cos(float64(theta[i])))
 	}
 	return ret
 }
 
 func inverseFitSlope(x, y []float64) float64 {
-	return math.Abs(float64(1) / fitSlope1D(x, y))
+	return math.Abs(1.0 / float64(fitSlope1D(x, y)))
 }
 
-func getExpectedDWWidth() float64 {
+func getExpectedDWWidth() float32 {
 
 	Keff := Ku1.Average() - 0.5*mag.Mu0*math.Pow(Msat.Average(), 2)
-	DWWidthAnisotropy := math.Sqrt(Aex.Average() / Keff)
-	DWWidthDemag := math.Sqrt(2 * Aex.Average() / (mag.Mu0 * math.Pow(Msat.Average(), 2)))
+	DWWidthAnisotropy := float32(math.Sqrt(Aex.Average() / Keff))
+	DWWidthDemag := float32(math.Sqrt(2 * Aex.Average() / (mag.Mu0 * math.Pow(Msat.Average(), 2))))
 
 	if DWWidthAnisotropy < DWWidthDemag {
 		return DWWidthAnisotropy
@@ -558,7 +529,7 @@ func getExpectedDWWidth() float64 {
 }
 
 func sumSlice(s []float64) float64 {
-	ret := float64(0)
+	ret := 0.0
 	for i := range s {
 		ret += s[i]
 	}
@@ -584,16 +555,8 @@ func fitSlope1D(x, y []float64) float64 {
 	return (t1 - t2) / (t3 - t4)
 }
 
-func castFloat64(s []float32) []float64 {
-	ret := make([]float64, len(s))
-	for i := range s {
-		ret[i] = float64(s[i])
-	}
-	return ret
-}
-
 func getDWWidth2D() [][]float64 {
-	_m := M.Buffer().HostCopy().Vectors()
-	_intPosZC := getIntDWPos(_m[Z])
-	return tanhFitDW(_m[Z], _intPosZC, DWMonitor.expectedHalfWidth)
+	_theta := ext_rxyphitheta.Comp(2).HostCopy().Scalars()
+	_intPosZC := getIntDWPos(_theta)
+	return tanhFitDW(_theta, _intPosZC, DWMonitor.expectedHalfWidth)
 }

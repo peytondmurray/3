@@ -120,6 +120,7 @@ func (s *activityStack) lastTime() float64 {
 }
 
 func (s *activityStack) init() {
+
 	_rpt := ext_rxyphitheta.HostCopy().Vectors()
 
 	s.t = Time

@@ -260,30 +260,6 @@ func IntRound(x float32) int {
 	return int(x + 0.5)
 }
 
-// Get the indices of the domain wall within the simulation window.
-// func GetNearestIntDWPos(theta [][][]float32) [][]int {
-
-// 	n := MeshSize()
-// 	pos := make([][]int, n[Z])
-
-// 	for i := range theta {
-// 		pos[i] = make([]int, n[Y])
-// 		for j := range theta[i] {
-// 			pos[i][j] = getNearestIntDWPos1D(theta[i][j])
-// 		}
-// 	}
-// 	return pos
-// }
-
-// // Find the index of the element nearest to the domain wall.
-// func getNearestIntDWPos1D(theta []float32) int {
-// 	ix := zeroCrossing(theta)
-// 	if math.Abs(math.Cos(float64(theta[ix-1]))) < math.Abs(math.Cos(float64(theta[ix]))) {
-// 		return ix - 1
-// 	}
-// 	return ix
-// }
-
 func GetNearestIntDWPos(theta [][][]float32, dw [][]int) [][]int {
 
 	nearest := make([][]int, len(dw))

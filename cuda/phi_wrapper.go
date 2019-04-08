@@ -5,46 +5,46 @@ package cuda
  EDITING IS FUTILE.
 */
 
-import (
+import(
+	"unsafe"
 	"github.com/mumax/3/cuda/cu"
 	"github.com/mumax/3/timer"
 	"sync"
-	"unsafe"
 )
 
 // CUDA handle for setphi kernel
 var setphi_code cu.Function
 
 // Stores the arguments for setphi kernel invocation
-type setphi_args_t struct {
-	arg_s  unsafe.Pointer
-	arg_mx unsafe.Pointer
-	arg_my unsafe.Pointer
-	arg_mz unsafe.Pointer
-	arg_Nx int
-	arg_Ny int
-	arg_Nz int
-	argptr [7]unsafe.Pointer
+type setphi_args_t struct{
+	 arg_s unsafe.Pointer
+	 arg_mx unsafe.Pointer
+	 arg_my unsafe.Pointer
+	 arg_mz unsafe.Pointer
+	 arg_Nx int
+	 arg_Ny int
+	 arg_Nz int
+	 argptr [7]unsafe.Pointer
 	sync.Mutex
 }
 
 // Stores the arguments for setphi kernel invocation
 var setphi_args setphi_args_t
 
-func init() {
+func init(){
 	// CUDA driver kernel call wants pointers to arguments, set them up once.
-	setphi_args.argptr[0] = unsafe.Pointer(&setphi_args.arg_s)
-	setphi_args.argptr[1] = unsafe.Pointer(&setphi_args.arg_mx)
-	setphi_args.argptr[2] = unsafe.Pointer(&setphi_args.arg_my)
-	setphi_args.argptr[3] = unsafe.Pointer(&setphi_args.arg_mz)
-	setphi_args.argptr[4] = unsafe.Pointer(&setphi_args.arg_Nx)
-	setphi_args.argptr[5] = unsafe.Pointer(&setphi_args.arg_Ny)
-	setphi_args.argptr[6] = unsafe.Pointer(&setphi_args.arg_Nz)
-}
+	 setphi_args.argptr[0] = unsafe.Pointer(&setphi_args.arg_s)
+	 setphi_args.argptr[1] = unsafe.Pointer(&setphi_args.arg_mx)
+	 setphi_args.argptr[2] = unsafe.Pointer(&setphi_args.arg_my)
+	 setphi_args.argptr[3] = unsafe.Pointer(&setphi_args.arg_mz)
+	 setphi_args.argptr[4] = unsafe.Pointer(&setphi_args.arg_Nx)
+	 setphi_args.argptr[5] = unsafe.Pointer(&setphi_args.arg_Ny)
+	 setphi_args.argptr[6] = unsafe.Pointer(&setphi_args.arg_Nz)
+	 }
 
 // Wrapper for setphi CUDA kernel, asynchronous.
-func k_setphi_async(s unsafe.Pointer, mx unsafe.Pointer, my unsafe.Pointer, mz unsafe.Pointer, Nx int, Ny int, Nz int, cfg *config) {
-	if Synchronous { // debug
+func k_setphi_async ( s unsafe.Pointer, mx unsafe.Pointer, my unsafe.Pointer, mz unsafe.Pointer, Nx int, Ny int, Nz int,  cfg *config) {
+	if Synchronous{ // debug
 		Sync()
 		timer.Start("setphi")
 	}
@@ -52,43 +52,44 @@ func k_setphi_async(s unsafe.Pointer, mx unsafe.Pointer, my unsafe.Pointer, mz u
 	setphi_args.Lock()
 	defer setphi_args.Unlock()
 
-	if setphi_code == 0 {
+	if setphi_code == 0{
 		setphi_code = fatbinLoad(setphi_map, "setphi")
 	}
 
-	setphi_args.arg_s = s
-	setphi_args.arg_mx = mx
-	setphi_args.arg_my = my
-	setphi_args.arg_mz = mz
-	setphi_args.arg_Nx = Nx
-	setphi_args.arg_Ny = Ny
-	setphi_args.arg_Nz = Nz
+	 setphi_args.arg_s = s
+	 setphi_args.arg_mx = mx
+	 setphi_args.arg_my = my
+	 setphi_args.arg_mz = mz
+	 setphi_args.arg_Nx = Nx
+	 setphi_args.arg_Ny = Ny
+	 setphi_args.arg_Nz = Nz
+	
 
 	args := setphi_args.argptr[:]
 	cu.LaunchKernel(setphi_code, cfg.Grid.X, cfg.Grid.Y, cfg.Grid.Z, cfg.Block.X, cfg.Block.Y, cfg.Block.Z, 0, stream0, args)
 
-	if Synchronous { // debug
+	if Synchronous{ // debug
 		Sync()
 		timer.Stop("setphi")
 	}
 }
 
 // maps compute capability on PTX code for setphi kernel.
-var setphi_map = map[int]string{0: "",
-	30: setphi_ptx_30,
-	35: setphi_ptx_35,
-	37: setphi_ptx_37,
-	50: setphi_ptx_50,
-	52: setphi_ptx_52,
-	53: setphi_ptx_53,
-	60: setphi_ptx_60,
-	61: setphi_ptx_61,
-	70: setphi_ptx_70,
-	75: setphi_ptx_75}
+var setphi_map = map[int]string{ 0: "" ,
+30: setphi_ptx_30 ,
+35: setphi_ptx_35 ,
+37: setphi_ptx_37 ,
+50: setphi_ptx_50 ,
+52: setphi_ptx_52 ,
+53: setphi_ptx_53 ,
+60: setphi_ptx_60 ,
+61: setphi_ptx_61 ,
+70: setphi_ptx_70 ,
+75: setphi_ptx_75  }
 
 // setphi PTX code for various compute capabilities.
-const (
-	setphi_ptx_30 = `
+const(
+  setphi_ptx_30 = `
 .version 6.4
 .target sm_30
 .address_size 64
@@ -223,7 +224,7 @@ BB0_7:
 
 
 `
-	setphi_ptx_35 = `
+   setphi_ptx_35 = `
 .version 6.4
 .target sm_35
 .address_size 64
@@ -358,7 +359,7 @@ BB0_7:
 
 
 `
-	setphi_ptx_37 = `
+   setphi_ptx_37 = `
 .version 6.4
 .target sm_37
 .address_size 64
@@ -493,7 +494,7 @@ BB0_7:
 
 
 `
-	setphi_ptx_50 = `
+   setphi_ptx_50 = `
 .version 6.4
 .target sm_50
 .address_size 64
@@ -628,7 +629,7 @@ BB0_7:
 
 
 `
-	setphi_ptx_52 = `
+   setphi_ptx_52 = `
 .version 6.4
 .target sm_52
 .address_size 64
@@ -763,7 +764,7 @@ BB0_7:
 
 
 `
-	setphi_ptx_53 = `
+   setphi_ptx_53 = `
 .version 6.4
 .target sm_53
 .address_size 64
@@ -898,7 +899,7 @@ BB0_7:
 
 
 `
-	setphi_ptx_60 = `
+   setphi_ptx_60 = `
 .version 6.4
 .target sm_60
 .address_size 64
@@ -1033,7 +1034,7 @@ BB0_7:
 
 
 `
-	setphi_ptx_61 = `
+   setphi_ptx_61 = `
 .version 6.4
 .target sm_61
 .address_size 64
@@ -1168,7 +1169,7 @@ BB0_7:
 
 
 `
-	setphi_ptx_70 = `
+   setphi_ptx_70 = `
 .version 6.4
 .target sm_70
 .address_size 64
@@ -1303,7 +1304,7 @@ BB0_7:
 
 
 `
-	setphi_ptx_75 = `
+   setphi_ptx_75 = `
 .version 6.4
 .target sm_75
 .address_size 64
@@ -1438,4 +1439,4 @@ BB0_7:
 
 
 `
-)
+ )

@@ -100,7 +100,7 @@ func saveDWConfig(name string) {
 
 	// Write timestamp
 	f.WriteString(fmt.Sprintf("#time = %e\n", Time))
-	f.WriteString(fmt.Sprintf("#window_position = %e\n", DWMonitor.windowpos))
+	f.WriteString(fmt.Sprintf("#window_position = %e\n", c[X]*float64(DWMonitor.windowpos)))
 	f.WriteString(fmt.Sprintf("x,y,z,mx,my,mz\n"))
 
 	// Write values
@@ -140,7 +140,7 @@ func saveComovingDWConfig(name string) {
 
 	// Write timestamp
 	f.WriteString(fmt.Sprintf("#time = %e\n", Time))
-	f.WriteString(fmt.Sprintf("#window_position = %e\n", DWMonitor.windowpos))
+	f.WriteString(fmt.Sprintf("#window_position = %e\n", c[X]*float64(DWMonitor.windowpos)))
 	f.WriteString(fmt.Sprintf("x,y,z,mx,my,mz\n"))
 
 	// Write values

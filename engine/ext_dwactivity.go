@@ -537,3 +537,4 @@ func getDWWidth2D() [][]float64 {
 	_intPosZC := getIntDWPos(_theta)
 	return tanhFitDW(_theta, _intPosZC, DWMonitor.expectedHalfWidth)
 }
+

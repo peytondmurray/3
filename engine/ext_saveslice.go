@@ -10,6 +10,7 @@ var (
 	saveXYZIndex              int // Stores the number of the next file to be written. Increments each time a file is written.
 	saveDWConfigIndex         int
 	saveComovingDWConfigIndex int
+	saveDWParametricIndex     int
 )
 
 func init() {
@@ -17,6 +18,7 @@ func init() {
 	DeclFunc("ext_saveVTK", saveVTK, "Save scalar slice of [][][]float64 values")
 	DeclFunc("ext_saveDWConfig", saveDWConfig, "Save absolute domain wall configuration as csv.")
 	DeclFunc("ext_saveComovingDWConfig", saveComovingDWConfig, "Save domain wall configuration in simulation window as csv.")
+	DeclFunc("ext_saveDWParametric", saveDWParametric, "Save parameterized domain wall configuration in simulation window as csv.")
 }
 
 func check(e error) {
@@ -171,4 +173,34 @@ func save2D(s [][]float64, name string) {
 
 	f.Sync()
 	save2DIndex++
+}
+
+func saveDWParametric(name string) {
+
+	c := Mesh().CellSize()
+	m := M.Buffer().HostCopy().Vectors()
+
+	dw := traceWall3D(m[2]) // Indices of DW in simulation window
+
+	// Find current working dir
+	f, err := os.Create(fmt.Sprintf(OD()+name+"%06d.csv", saveDWParametricIndex))
+	check(err)
+
+	// Write timestamp
+	f.WriteString(fmt.Sprintf("#time = %e\n", Time))
+	f.WriteString(fmt.Sprintf("#window_position = %e\n", c[X]*float64(DWMonitor.windowpos)))
+	f.WriteString(fmt.Sprintf("x,y,z,mx,my,mz\n"))
+
+	// Write values
+	for iz := range dw {
+		for j := range dw[iz] {
+			iy := dw[iz][j][0]
+			ix := dw[iz][j][1]
+			f.WriteString(fmt.Sprintf("%E,%E,%E,%E,%E,%E\n", c[X]*float64(ix+DWMonitor.windowpos), c[Y]*float64(iy), c[Z]*float64(iz), m[0][iz][iy][ix], m[1][iz][iy][ix], m[2][iz][iy][ix]))
+		}
+	}
+
+	f.Sync()
+	saveDWParametricIndex++
+
 }

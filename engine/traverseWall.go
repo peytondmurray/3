@@ -12,150 +12,107 @@ func traceWall3D(mz [][][]float32) [][][2]int {
 	return path
 }
 
+// Some extremely contrived domain wall configurations will not be identified correctly with this method. For example,
+// if an extened bubble domain wall is traced which spans the entire simulation, but isn't the real domain wall,
+// this function *might* trace that wall instead of the actual one you want.
 func traceWall2D(mz [][]float32) [][2]int {
 
-	path := [][2]int{{0, zc(mz[0])}}
-	for len(path) > 1 && isPathLoop(path) {
-		path = append(path, nextWallStep(mz, path))
+	zcs := allZCs(mz)
+	path := [][2]int{pop(zcs)}
+
+	for len(zcs) > 0 {
+		if !isPathLoop(path) {
+			insertionSort(zcs, path[len(path)-1])
+			path = append(path, pop(zcs))
+		} else if pathSpansY(path, mz) {
+			// The domain wall forms a loop, and all the y-indices in the simulation are covered. There are leftover
+			// zcs, so there must be a bubble somewhere. Ignore.
+			return path
+		} else {
+			// The domain wall forms a loop, but does not span every y-index in the simulation. Therefore a bubble must
+			// have been traced, not the actual domain wall. Throw out all the ZCs in the current path
+			// (which form the bubble), and start tracing a new path using a different ZC from the remaining zcs.
+			path = [][2]int{pop(zcs)}
+
+		}
 	}
 	return path
 }
 
+func pop(a [][2]int) [2]int {
+	ret := a[len(a)-1]
+	a = a[:len(a)-1]
+	return ret
+}
+
+// Checks if path explicitly covers every y-index of the simulation region
+func pathSpansY(path [][2]int, mz [][]float32) bool {
+	for i := range mz {
+		if !iyInPath(path, i) {
+			return false
+		}
+	}
+	return true
+}
+
+// Checks if path forms a loop, path[0] == path[-1]
 func isPathLoop(path [][2]int) bool {
-	return path[len(path)-1][0] != path[0][0] && path[len(path)-1][1] != path[0][1]
+	return path[len(path)-1][0] == path[0][0] && path[len(path)-1][1] == path[0][1]
 }
 
-// Search across adjacent rows. Find the next zero crossing closest in space to current location which is not
-// already in the path.
-func nextWallStep(mz [][]float32, path [][2]int) [2]int {
-
-	zcs := allZCs(mz, path[len(path)-1])
-	distances := distances(zcs, path[len(path)-1])
-
-	zcs, distances = insertionSort(zcs, distances)
-
-
-	return tup
-}
-
-// Search the path back to front for a tuple in the path.
-func inPath(tup [2]int, path [][2]int) bool {
-	for i := len(path)-1; i > 0; i-- {
-		if tup[0] == path[i][0] && tup[1] == path[i][1] {
+// Check whether a y-index iy is in the path
+func iyInPath(path [][2]int, iy int) bool {
+	for j := range path {
+		if path[j][0] == iy {
 			return true
 		}
 	}
 	return false
 }
 
-// Find all ZCs in rows adjacent to tup, which contains an {iy, ix} index pair of latest point in path
-func allZCs(mz [][]float32, tup [2]int) [][2]int {
-
-	k := 0
-	tups := make([][2]int, 1)
-
-	for i := tup[0]-1; i <= tup[0]+1; i++ {
-		for j := len(mz[i])-1; j > 1; j-- {
-			if mz[i][j]*mz[tup[0]][j-1] < 0 {
-				tups[k] = [2]int{i, j}
+// Return an array of {iy, ix} pairs of indices for each zero crossing in mz
+func allZCs(mz [][]float32) [][2]int {
+	zcs := make([][2]int, 0)
+	for iy := range mz {
+		for ix := len(mz[iy]) - 1; ix > 1; ix-- {
+			if mz[iy][ix]*mz[iy][ix-1] < 0 {
+				zcs = append(zcs, [2]int{iy, ix})
 			}
 		}
 	}
-	return tups
+	return zcs
 }
 
-// For a set of tuples containing {iy, ix} pairs, return the cartesian distances to loc
-func distances(pts [][2]int, loc [2]int) []float64 {
+// Sort a by the cartesian distance between a[i] and b using insertion sort.
+func insertionSort(a [][2]int, b [2]int) {
 
-	dists := make([]float64, len(pts))
-	for i := 0; i < len(pts); i++ {
-		dy := pts[i][0] - loc[0]
-		dx := pts[i][1] - loc[1]
-		dists[i] = math.Sqrt(float64(dy*dy) + float64(dx*dx))
-	}
-	return dists
-}
-
-// Sort a and b by the values in b using insertion sort.
-func insertionSort(a [][2]int, b []float64) ([][2]int, []float64) {
+	dists := distances(a, b)
 
 	i := 1
-	for i < len(b) {
+	for i < len(a) {
 		_a := a[i]
-		_b := b[i]
+		_dist := dists[i]
 
-		j := i-1
-		for j >= 0 && b[j] > _b {
+		j := i - 1
+		for j >= 0 && dists[j] > _dist {
 			a[j+1] = a[j]
-			b[j+1] = b[j]
+			dists[j+1] = dists[j]
 			j--
 		}
 		a[j+1] = _a
-		b[j+1] = _b
+		dists[j+1] = _dist
 		i++
 	}
 
-	return a, b
+	return
 }
 
-
-
-
-// func nextWallStep(mz [][]float32, path [][2]int) [2]int {
-
-// 	last := path[len(path)-1]
-// 	llast := path[len(path)-2]
-
-// 	iMinAbsMz := [2]int{0, 0}
-// 	minAbsMz := 1.0
-
-// 	for _iy := last[0] - 1; _iy <= last[0]+1; _iy++ {
-
-// 		iy := _iy % len(mz)
-
-// 		// Don't iterate out of bounds; limit the range using intMax and intMin
-// 		for ix := intMax(last[1]-1, 0); ix <= intMin(last[1]+1, len(mz[0])-1); ix++ {
-
-// 			// If the path can be connected back onto itself in a loop, do so.
-// 			if path[0][0] == iy && path[0][1] == ix {
-// 				return [2]int{iy, ix}
-// 			}
-
-// 			// Don't include the location of the last point, or the next-to-last point
-// 			if (last[0] == iy && last[1] == ix) || (llast[0] == iy && llast[1] == ix) {
-// 				continue
-// 			}
-
-// 			// If _minAbsMz is closer to 0 than we've seen yet, store the associated indices
-// 			_minAbsMz := math.Abs(float64(mz[iy][ix]))
-// 			if _minAbsMz < minAbsMz {
-// 				minAbsMz = _minAbsMz
-// 				iMinAbsMz = [2]int{iy, ix}
-// 			}
-// 		}
-// 	}
-// 	return iMinAbsMz
-// }
-
-func intMax(a, b int) int {
-	if a > b {
-		return a
+func distances(a [][2]int, b [2]int) []float64 {
+	ret := make([]float64, len(a))
+	for i := range a {
+		dy := a[i][0] - b[0]
+		dx := a[i][1] - b[1]
+		ret[i] = math.Sqrt(float64(dx*dx + dy*dy))
 	}
-	return b
-}
-
-func intMin(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func zc(mz []float32) int {
-	for i := len(mz) - 1; i > 1; i-- {
-		if mz[i]*mz[i-1] < 0 {
-			return i - 1
-		}
-	}
-	panic("No zero crossing: domain wall not found.")
+	return ret
 }

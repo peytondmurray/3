@@ -101,8 +101,10 @@ func saveDWConfig(name string) {
 	check(err)
 
 	// Write timestamp
-	f.WriteString(fmt.Sprintf("#time = %e\n", Time))
-	f.WriteString(fmt.Sprintf("#window_position = %e\n", c[X]*float64(DWMonitor.windowpos)))
+	_bext := B_ext.Average()
+	f.WriteString(fmt.Sprintf("#time = %E\n", Time))
+	f.WriteString(fmt.Sprintf("#window_position = %E\n", c[X]*float64(DWMonitor.windowpos)))
+	f.WriteString(fmt.Sprintf("#B_ext (T) = (%E,%E,%E)\n", _bext[0], _bext[1], _bext[2]))
 	f.WriteString(fmt.Sprintf("x,y,z,mx,my,mz\n"))
 
 	// Write values
@@ -141,8 +143,10 @@ func saveComovingDWConfig(name string) {
 	check(err)
 
 	// Write timestamp
-	f.WriteString(fmt.Sprintf("#time = %e\n", Time))
-	f.WriteString(fmt.Sprintf("#window_position = %e\n", c[X]*float64(DWMonitor.windowpos)))
+	_bext := B_ext.Average()
+	f.WriteString(fmt.Sprintf("#time = %E\n", Time))
+	f.WriteString(fmt.Sprintf("#window_position = %E\n", c[X]*float64(DWMonitor.windowpos)))
+	f.WriteString(fmt.Sprintf("#B_ext (T) = (%E,%E,%E)\n", _bext[0], _bext[1], _bext[2]))
 	f.WriteString(fmt.Sprintf("x,y,z,mx,my,mz\n"))
 
 	// Write values
@@ -161,7 +165,7 @@ func save2D(s [][]float64, name string) {
 	check(err)
 
 	// Write timestamp
-	f.WriteString(fmt.Sprintf("#time = %e\n", Time))
+	f.WriteString(fmt.Sprintf("#time = %E\n", Time))
 	f.WriteString(fmt.Sprintf("i,j,value\n"))
 
 	// Write values
@@ -187,8 +191,10 @@ func saveDWParametric(name string) {
 	check(err)
 
 	// Write timestamp
-	f.WriteString(fmt.Sprintf("#time = %e\n", Time))
-	f.WriteString(fmt.Sprintf("#window_position = %e\n", c[X]*float64(DWMonitor.windowpos)))
+	_bext := B_ext.Average()
+	f.WriteString(fmt.Sprintf("#time = %E\n", Time))
+	f.WriteString(fmt.Sprintf("#window_position = %E\n", c[X]*float64(DWMonitor.windowpos)))
+	f.WriteString(fmt.Sprintf("#B_ext (T) = (%E,%E,%E)\n", _bext[0], _bext[1], _bext[2]))
 	f.WriteString(fmt.Sprintf("x,y,z,mx,my,mz\n"))
 
 	// Write values

@@ -18,12 +18,23 @@ func traceWall3D(mz [][][]float32) [][][2]int {
 func traceWall2D(mz [][]float32) [][2]int {
 
 	zcs := allZCs(mz)
-	path := [][2]int{pop(zcs)}
+	buffer := [2]int{}
+	zcs, buffer = pop(zcs)
+	path := make([][2]int, 1)
+	path[0] = buffer
 
 	for len(zcs) > 0 {
 		if !isPathLoop(path) {
-			insertionSort(zcs, path[len(path)-1])
-			path = append(path, pop(zcs))
+
+			// This can be done by doing an insertion sort. This is pretty efficient in terms of number of swaps
+			// after the first sort, but sorting every time is probably not as efficient as just popping the nearest
+			// zc from the list of zcs.
+			// insertionSort(zcs, path[len(path)-1], len(mz))
+			// path = append(path, pop(zcs))
+
+			// Pop the zc nearest to the current zc.
+			zcs, buffer = popMin(zcs, path[len(path)-1], len(mz))
+			path = append(path, buffer)
 		} else if pathSpansY(path, mz) {
 			// The domain wall forms a loop, and all the y-indices in the simulation are covered. There are leftover
 			// zcs, so there must be a bubble somewhere. Ignore.
@@ -32,17 +43,36 @@ func traceWall2D(mz [][]float32) [][2]int {
 			// The domain wall forms a loop, but does not span every y-index in the simulation. Therefore a bubble must
 			// have been traced, not the actual domain wall. Throw out all the ZCs in the current path
 			// (which form the bubble), and start tracing a new path using a different ZC from the remaining zcs.
-			path = [][2]int{pop(zcs)}
-
+			zcs, buffer = pop(zcs)
+			path = make([][2]int, 1)
+			path[0] = buffer
 		}
 	}
 	return path
 }
 
-func pop(a [][2]int) [2]int {
+func pop(a [][2]int) ([][2]int, [2]int) {
 	ret := a[len(a)-1]
 	a = a[:len(a)-1]
-	return ret
+	return a, ret
+}
+
+func popMin(zcs [][2]int, b [2]int, ny int) ([][2]int, [2]int) {
+	minDist := distance(zcs[0], b, ny)
+	minIndex := 0
+
+	for i := range zcs {
+		_dist := distance(zcs[i], b, ny)
+		if _dist < minDist {
+			minDist = _dist
+			minIndex = i
+		}
+	}
+
+	minZC := zcs[minIndex]
+	zcs = append(zcs[:minIndex], zcs[minIndex+1:]...)
+
+	return zcs, minZC
 }
 
 // Checks if path explicitly covers every y-index of the simulation region
@@ -57,7 +87,7 @@ func pathSpansY(path [][2]int, mz [][]float32) bool {
 
 // Checks if path forms a loop, path[0] == path[-1]
 func isPathLoop(path [][2]int) bool {
-	return path[len(path)-1][0] == path[0][0] && path[len(path)-1][1] == path[0][1]
+	return len(path) > 1 && path[len(path)-1][0] == path[0][0] && path[len(path)-1][1] == path[0][1]
 }
 
 // Check whether a y-index iy is in the path
@@ -84,9 +114,9 @@ func allZCs(mz [][]float32) [][2]int {
 }
 
 // Sort a by the cartesian distance between a[i] and b using insertion sort.
-func insertionSort(a [][2]int, b [2]int) {
+func insertionSort(a [][2]int, b [2]int, ny int) {
 
-	dists := distances(a, b)
+	dists := allDistances(a, b, ny)
 
 	i := 1
 	for i < len(a) {
@@ -107,12 +137,25 @@ func insertionSort(a [][2]int, b [2]int) {
 	return
 }
 
-func distances(a [][2]int, b [2]int) []float64 {
+// Distances are wrapped in the y-direction.
+func allDistances(a [][2]int, b [2]int, ny int) []float64 {
+
 	ret := make([]float64, len(a))
 	for i := range a {
-		dy := a[i][0] - b[0]
-		dx := a[i][1] - b[1]
-		ret[i] = math.Sqrt(float64(dx*dx + dy*dy))
+		ret[i] = distance(a[i], b, ny)
 	}
 	return ret
+}
+
+func distance(a, b [2]int, ny int) float64 {
+	dy := float64(a[0] - b[0])
+	dx := float64(a[1] - b[1])
+	return math.Sqrt(dx*dx + math.Min(float64(ny)-math.Abs(dy), math.Abs(dy)))
+}
+
+func intMin(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

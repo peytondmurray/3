@@ -5,46 +5,46 @@ package cuda
  EDITING IS FUTILE.
 */
 
-import (
+import(
+	"unsafe"
 	"github.com/mumax/3/cuda/cu"
 	"github.com/mumax/3/timer"
 	"sync"
-	"unsafe"
 )
 
 // CUDA handle for settheta kernel
 var settheta_code cu.Function
 
 // Stores the arguments for settheta kernel invocation
-type settheta_args_t struct {
-	arg_s  unsafe.Pointer
-	arg_mx unsafe.Pointer
-	arg_my unsafe.Pointer
-	arg_mz unsafe.Pointer
-	arg_Nx int
-	arg_Ny int
-	arg_Nz int
-	argptr [7]unsafe.Pointer
+type settheta_args_t struct{
+	 arg_s unsafe.Pointer
+	 arg_mx unsafe.Pointer
+	 arg_my unsafe.Pointer
+	 arg_mz unsafe.Pointer
+	 arg_Nx int
+	 arg_Ny int
+	 arg_Nz int
+	 argptr [7]unsafe.Pointer
 	sync.Mutex
 }
 
 // Stores the arguments for settheta kernel invocation
 var settheta_args settheta_args_t
 
-func init() {
+func init(){
 	// CUDA driver kernel call wants pointers to arguments, set them up once.
-	settheta_args.argptr[0] = unsafe.Pointer(&settheta_args.arg_s)
-	settheta_args.argptr[1] = unsafe.Pointer(&settheta_args.arg_mx)
-	settheta_args.argptr[2] = unsafe.Pointer(&settheta_args.arg_my)
-	settheta_args.argptr[3] = unsafe.Pointer(&settheta_args.arg_mz)
-	settheta_args.argptr[4] = unsafe.Pointer(&settheta_args.arg_Nx)
-	settheta_args.argptr[5] = unsafe.Pointer(&settheta_args.arg_Ny)
-	settheta_args.argptr[6] = unsafe.Pointer(&settheta_args.arg_Nz)
-}
+	 settheta_args.argptr[0] = unsafe.Pointer(&settheta_args.arg_s)
+	 settheta_args.argptr[1] = unsafe.Pointer(&settheta_args.arg_mx)
+	 settheta_args.argptr[2] = unsafe.Pointer(&settheta_args.arg_my)
+	 settheta_args.argptr[3] = unsafe.Pointer(&settheta_args.arg_mz)
+	 settheta_args.argptr[4] = unsafe.Pointer(&settheta_args.arg_Nx)
+	 settheta_args.argptr[5] = unsafe.Pointer(&settheta_args.arg_Ny)
+	 settheta_args.argptr[6] = unsafe.Pointer(&settheta_args.arg_Nz)
+	 }
 
 // Wrapper for settheta CUDA kernel, asynchronous.
-func k_settheta_async(s unsafe.Pointer, mx unsafe.Pointer, my unsafe.Pointer, mz unsafe.Pointer, Nx int, Ny int, Nz int, cfg *config) {
-	if Synchronous { // debug
+func k_settheta_async ( s unsafe.Pointer, mx unsafe.Pointer, my unsafe.Pointer, mz unsafe.Pointer, Nx int, Ny int, Nz int,  cfg *config) {
+	if Synchronous{ // debug
 		Sync()
 		timer.Start("settheta")
 	}
@@ -52,43 +52,44 @@ func k_settheta_async(s unsafe.Pointer, mx unsafe.Pointer, my unsafe.Pointer, mz
 	settheta_args.Lock()
 	defer settheta_args.Unlock()
 
-	if settheta_code == 0 {
+	if settheta_code == 0{
 		settheta_code = fatbinLoad(settheta_map, "settheta")
 	}
 
-	settheta_args.arg_s = s
-	settheta_args.arg_mx = mx
-	settheta_args.arg_my = my
-	settheta_args.arg_mz = mz
-	settheta_args.arg_Nx = Nx
-	settheta_args.arg_Ny = Ny
-	settheta_args.arg_Nz = Nz
+	 settheta_args.arg_s = s
+	 settheta_args.arg_mx = mx
+	 settheta_args.arg_my = my
+	 settheta_args.arg_mz = mz
+	 settheta_args.arg_Nx = Nx
+	 settheta_args.arg_Ny = Ny
+	 settheta_args.arg_Nz = Nz
+	
 
 	args := settheta_args.argptr[:]
 	cu.LaunchKernel(settheta_code, cfg.Grid.X, cfg.Grid.Y, cfg.Grid.Z, cfg.Block.X, cfg.Block.Y, cfg.Block.Z, 0, stream0, args)
 
-	if Synchronous { // debug
+	if Synchronous{ // debug
 		Sync()
 		timer.Stop("settheta")
 	}
 }
 
 // maps compute capability on PTX code for settheta kernel.
-var settheta_map = map[int]string{0: "",
-	30: settheta_ptx_30,
-	35: settheta_ptx_35,
-	37: settheta_ptx_37,
-	50: settheta_ptx_50,
-	52: settheta_ptx_52,
-	53: settheta_ptx_53,
-	60: settheta_ptx_60,
-	61: settheta_ptx_61,
-	70: settheta_ptx_70,
-	75: settheta_ptx_75}
+var settheta_map = map[int]string{ 0: "" ,
+30: settheta_ptx_30 ,
+35: settheta_ptx_35 ,
+37: settheta_ptx_37 ,
+50: settheta_ptx_50 ,
+52: settheta_ptx_52 ,
+53: settheta_ptx_53 ,
+60: settheta_ptx_60 ,
+61: settheta_ptx_61 ,
+70: settheta_ptx_70 ,
+75: settheta_ptx_75  }
 
 // settheta PTX code for various compute capabilities.
-const (
-	settheta_ptx_30 = `
+const(
+  settheta_ptx_30 = `
 .version 6.4
 .target sm_30
 .address_size 64
@@ -178,7 +179,7 @@ BB0_2:
 
 
 `
-	settheta_ptx_35 = `
+   settheta_ptx_35 = `
 .version 6.4
 .target sm_35
 .address_size 64
@@ -268,7 +269,7 @@ BB0_2:
 
 
 `
-	settheta_ptx_37 = `
+   settheta_ptx_37 = `
 .version 6.4
 .target sm_37
 .address_size 64
@@ -358,7 +359,7 @@ BB0_2:
 
 
 `
-	settheta_ptx_50 = `
+   settheta_ptx_50 = `
 .version 6.4
 .target sm_50
 .address_size 64
@@ -448,7 +449,7 @@ BB0_2:
 
 
 `
-	settheta_ptx_52 = `
+   settheta_ptx_52 = `
 .version 6.4
 .target sm_52
 .address_size 64
@@ -538,7 +539,7 @@ BB0_2:
 
 
 `
-	settheta_ptx_53 = `
+   settheta_ptx_53 = `
 .version 6.4
 .target sm_53
 .address_size 64
@@ -628,7 +629,7 @@ BB0_2:
 
 
 `
-	settheta_ptx_60 = `
+   settheta_ptx_60 = `
 .version 6.4
 .target sm_60
 .address_size 64
@@ -718,7 +719,7 @@ BB0_2:
 
 
 `
-	settheta_ptx_61 = `
+   settheta_ptx_61 = `
 .version 6.4
 .target sm_61
 .address_size 64
@@ -808,7 +809,7 @@ BB0_2:
 
 
 `
-	settheta_ptx_70 = `
+   settheta_ptx_70 = `
 .version 6.4
 .target sm_70
 .address_size 64
@@ -898,7 +899,7 @@ BB0_2:
 
 
 `
-	settheta_ptx_75 = `
+   settheta_ptx_75 = `
 .version 6.4
 .target sm_75
 .address_size 64
@@ -988,4 +989,4 @@ BB0_2:
 
 
 `
-)
+ )

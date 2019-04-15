@@ -49,6 +49,6 @@ func SetRxyPhiTheta(s *data.Slice, m *data.Slice) {
 	if cfg == nil {
 		panic("hey")
 	}
-	// k_setrxyphitheta_async(s.DevPtr(X), m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z), N[X], N[Y], N[Z], cfg)
+	k_setrxyphitheta_async(s.DevPtr(X), s.DevPtr(Y), s.DevPtr(Z), m.DevPtr(X), m.DevPtr(Y), m.DevPtr(Z), N[X], N[Y], N[Z], cfg)
 	return
 }

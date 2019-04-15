@@ -6,9 +6,10 @@ import (
 )
 
 var (
-	ext_phi   = NewScalarField("ext_phi", "rad", "Azimuthal angle phi", SetPhiAngle)
-	ext_theta = NewScalarField("ext_theta", "rad", "Polar angle theta", SetThetaAngle)
-	ext_rxy   = NewScalarField("ext_rxy", "m", "Magnitude of m in the xy plane", SetRxyMagnitude)
+	ext_phi         = NewScalarField("ext_phi", "rad", "Azimuthal angle phi", SetPhiAngle)
+	ext_theta       = NewScalarField("ext_theta", "rad", "Polar angle theta", SetThetaAngle)
+	ext_rxy         = NewScalarField("ext_rxy", "m", "Magnitude of m in the xy plane", SetRxyMagnitude)
+	ext_rxyphitheta = NewVectorField("ext_rxyphitheta", "m[rxy] rad[phi] rad[theta]", "Magnitude of m in xy plane, azimuthal angle, polar angle", SetRxyPhiTheta)
 )
 
 func SetPhiAngle(dst *data.Slice) {
@@ -24,6 +25,10 @@ func SetThetaAngle(dst *data.Slice) {
 func SetRxyMagnitude(dst *data.Slice) {
 	cuda.SetRxy(dst, M.Buffer())
 	return
+}
+
+func SetRxyPhiTheta(dst *data.Slice) {
+	cuda.SetRxyPhiTheta(dst, M.Buffer())
 }
 
 func GetPhi() *data.Slice {

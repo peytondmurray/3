@@ -71,11 +71,6 @@ func popMin(zcs [][2]int, b [2]int, ny int) ([][2]int, [2]int) {
 		}
 
 	}
-
-	if minDist > 2 {
-		print(fmt.Sprintf("%f\n", minDist))
-	}
-
 	minZC := zcs[minIndex]
 	zcs = append(zcs[:minIndex], zcs[minIndex+1:]...)
 

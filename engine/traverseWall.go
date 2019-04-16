@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -63,10 +64,16 @@ func popMin(zcs [][2]int, b [2]int, ny int) ([][2]int, [2]int) {
 
 	for i := range zcs {
 		_dist := distance(zcs[i], b, ny)
+
 		if _dist < minDist {
 			minDist = _dist
 			minIndex = i
 		}
+
+	}
+
+	if minDist > 2 {
+		print(fmt.Sprintf("%f\n", minDist))
 	}
 
 	minZC := zcs[minIndex]
@@ -148,9 +155,10 @@ func allDistances(a [][2]int, b [2]int, ny int) []float64 {
 }
 
 func distance(a, b [2]int, ny int) float64 {
-	dy := float64(a[0] - b[0])
+	_dy := float64(a[0] - b[0])
+	dy := math.Min(float64(ny)-math.Abs(_dy), math.Abs(_dy)) // Wrap the distance around in the y-direction
 	dx := float64(a[1] - b[1])
-	return math.Sqrt(dx*dx + math.Min(float64(ny)-math.Abs(dy), math.Abs(dy)))
+	return math.Sqrt(dx*dx + dy*dy)
 }
 
 func intMin(a, b int) int {

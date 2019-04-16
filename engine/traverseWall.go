@@ -24,28 +24,32 @@ func traceWall2D(mz [][]float32) [][2]int {
 	path[0] = buffer
 
 	for len(zcs) > 0 {
-		if !isPathLoop(path) {
-
-			// This can be done by doing an insertion sort. This is pretty efficient in terms of number of swaps
-			// after the first sort, but sorting every time is probably not as efficient as just popping the nearest
-			// zc from the list of zcs.
-			// insertionSort(zcs, path[len(path)-1], len(mz))
-			// path = append(path, pop(zcs))
-
-			// Pop the zc nearest to the current zc.
-			zcs, buffer = popMin(zcs, path[len(path)-1], len(mz))
-			path = append(path, buffer)
-		} else if pathSpansY(path, mz) {
-			// The domain wall forms a loop, and all the y-indices in the simulation are covered. There are leftover
-			// zcs, so there must be a bubble somewhere. Ignore.
+		// if !isPathLoop(path, len(mz)) {
+		// 	// Domain wall does not form a loop. Keep adding zero crossings to it until we run out or until it forms a
+		// 	// loop. Pop the zc nearest to the current zc.
+		// 	zcs, buffer = popMin(zcs, path[len(path)-1], len(mz))
+		// 	path = append(path, buffer)
+		// } else if pathSpansY(path, mz) {
+		// 	// The domain wall forms a loop, and all the y-indices in the simulation are covered. There are leftover
+		// 	// zcs, so there must be a bubble somewhere. Ignore.
+		// 	return path
+		// } else {
+		// 	// The domain wall forms a loop, but does not span every y-index in the simulation. Therefore a bubble must
+		// 	// have been traced, not the actual domain wall. Throw out all the ZCs in the current path
+		// 	// (which form the bubble), and start tracing a new path using a different ZC from the remaining zcs.
+		// 	zcs, buffer = pop(zcs)
+		// 	path = make([][2]int, 1)
+		// 	path[0] = buffer
+		// }
+		if pathSpansY(path, mz) {
 			return path
-		} else {
-			// The domain wall forms a loop, but does not span every y-index in the simulation. Therefore a bubble must
-			// have been traced, not the actual domain wall. Throw out all the ZCs in the current path
-			// (which form the bubble), and start tracing a new path using a different ZC from the remaining zcs.
+		} else if isPathLoop(zcs, path, len(mz)) {
 			zcs, buffer = pop(zcs)
 			path = make([][2]int, 1)
 			path[0] = buffer
+		} else {
+			zcs, buffer = popMin(zcs, path[len(path)-1], len(mz))
+			path = append(path, buffer)
 		}
 	}
 	return path
@@ -58,22 +62,16 @@ func pop(a [][2]int) ([][2]int, [2]int) {
 }
 
 func popMin(zcs [][2]int, b [2]int, ny int) ([][2]int, [2]int) {
-	minDist := distance(zcs[0], b, ny)
+	dsts := allDistances(zcs, b, ny)
 	minIndex := 0
 
 	for i := range zcs {
-		_dist := distance(zcs[i], b, ny)
-
-		if _dist < minDist {
-			minDist = _dist
+		if dsts[i] < dsts[minIndex] {
 			minIndex = i
 		}
-
 	}
-	minZC := zcs[minIndex]
-	zcs = append(zcs[:minIndex], zcs[minIndex+1:]...)
 
-	return zcs, minZC
+	return append(zcs[:minIndex], zcs[minIndex+1:]...), zcs[minIndex]
 }
 
 // Checks if path explicitly covers every y-index of the simulation region
@@ -86,12 +84,18 @@ func pathSpansY(path [][2]int, mz [][]float32) bool {
 	return true
 }
 
-// Checks if path forms a loop, path[0] == path[-1]
-func isPathLoop(path [][2]int) bool {
-	return len(path) > 1 && path[len(path)-1][0] == path[0][0] && path[len(path)-1][1] == path[0][1]
+// Checks whether the path forms a loop: the first point in the path is appended to the list of remaining ZCs. If the
+// closest cell to the last element in the path is the first point, then return true. Otherwise, false.
+func isPathLoop(zcs, path [][2]int, ny int) bool {
+
+	if len(path) < 3 {
+		return false
+	}
+	_, nextZC := popMin(append(zcs, path[0]), path[len(path)-1], ny)
+	return nextZC[0] == path[0][0] && nextZC[1] == path[0][1]
 }
 
-// Check whether a y-index iy is in the path
+// Check whether a y-index iy is in the pathz
 func iyInPath(path [][2]int, iy int) bool {
 	for j := range path {
 		if path[j][0] == iy {

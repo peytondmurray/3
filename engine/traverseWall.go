@@ -91,7 +91,13 @@ func isPathLoop(zcs, path [][2]int, ny int) bool {
 	if len(path) < 3 {
 		return false
 	}
-	_, nextZC := popMin(append(zcs, path[0]), path[len(path)-1], ny)
+	// _, nextZC := popMin(append(zcs, path[0]), path[len(path)-1], ny)
+
+	dists := allDistances(zcs, path[-1], ny)
+	starting_
+
+
+
 	return nextZC[0] == path[0][0] && nextZC[1] == path[0][1]
 }
 

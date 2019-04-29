@@ -383,8 +383,8 @@ func exactPosAvg() float32 {
 
 	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function. They don't return
 	// exactly the same values, however...?
-	// avg := avgMz(mz)
-	avg := float32(M.Comp(Z).Average())
+	avg := avgMz(M.Comp(Z).HostCopy().Scalars())
+	// avg := float32(M.Comp(Z).Average())
 
 	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
 	// 50% are flipped up, the DW is 50% from the left side of the simulation window

@@ -25,6 +25,7 @@ func init() {
 	DeclFunc("ext_getphidot", getPhiDot, "Get the current phi angle as a slice.")
 	DeclFunc("ext_getthetadot", getThetaDot, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getdwwidth2d", getDWWidth2D, "Get the domain wall width along each row.")
+	DeclFunc("ext_debug_setdw", debugSetDWMonitor, "Set DW parameters")
 }
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
@@ -88,6 +89,34 @@ func (s *activityStack) update() {
 		s.push()
 	}
 	return
+}
+
+func debugSetDWMonitor(vel float64) {
+
+	_rpt := ext_rxyphitheta.HostCopy().Vectors()
+
+	DWMonitor.t = Time
+	DWMonitor.lastStep = NSteps
+	DWMonitor.windowpos = GetIntWindowPos()
+
+	_intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
+	DWMonitor.posAvg = exactPosAvg()
+	DWMonitor.velAvg = float32(vel)
+	DWMonitor.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
+
+	DWMonitor.rxy = _rpt[0]
+	DWMonitor.phi = _rpt[1]
+	DWMonitor.theta = _rpt[2]
+
+	DWMonitor.phidot = ZeroWorld()
+	DWMonitor.thetadot = ZeroWorld()
+	DWMonitor.initialized = true
+
+	// DWWidth
+	DWMonitor.width = avg2D(tanhFitDW(_rpt[2], _intPosZC, DWMonitor.expectedHalfWidth))
+
+	return
+
 }
 
 func getExactPosAvg() float64 {
@@ -537,4 +566,3 @@ func getDWWidth2D() [][]float64 {
 	_intPosZC := getIntDWPos(_theta)
 	return tanhFitDW(_theta, _intPosZC, DWMonitor.expectedHalfWidth)
 }
-

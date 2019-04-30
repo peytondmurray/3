@@ -28,12 +28,7 @@ func init() {
 	DeclFunc("ext_getthetadot", getThetaDot, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getdwwidth2d", getDWWidth2D, "Get the domain wall width along each row.")
 	DeclFunc("ext_debug_setdw", debugSetDWMonitor, "Set DW parameters")
-	// DeclFunc("avg_diff", avgDiff, "Difference: M.Comp(Z).HostCopy().Scalars() - M.Comp(Z).Average()")
 }
-
-// func sumSqDiff() float64 {
-
-// }
 
 func avgDiff() float64 {
 	averageCPU := float64(avgMz(M.Comp(Z).HostCopy().Scalars()))

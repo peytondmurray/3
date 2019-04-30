@@ -15,6 +15,8 @@ var (
 	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
 	DWWidth       = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", getDWWidth)
 	DWMonitor     activityStack // Most recent positions of DW speed
+	AverageDiff   = NewScalarValue("avgDiff", "", "CPU-GPU", avgDiff)
+	// SumSquareDiff = NewScalarValue("sumSqDiff", "", "Sum((CPU-GPU)^2)", sumSqDiff)
 )
 
 func init() {
@@ -26,6 +28,17 @@ func init() {
 	DeclFunc("ext_getthetadot", getThetaDot, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getdwwidth2d", getDWWidth2D, "Get the domain wall width along each row.")
 	DeclFunc("ext_debug_setdw", debugSetDWMonitor, "Set DW parameters")
+	// DeclFunc("avg_diff", avgDiff, "Difference: M.Comp(Z).HostCopy().Scalars() - M.Comp(Z).Average()")
+}
+
+// func sumSqDiff() float64 {
+
+// }
+
+func avgDiff() float64 {
+	averageCPU := float64(avgMz(M.Comp(Z).HostCopy().Scalars()))
+	averageGPU := M.Comp(Z).Average()
+	return averageCPU - averageGPU
 }
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells

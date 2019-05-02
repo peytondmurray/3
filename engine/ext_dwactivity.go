@@ -69,8 +69,10 @@ type activityStack struct {
 	width float64
 
 	// DWVel
-	posAvg float32
-	velAvg float32
+	posAvg float64
+	velAvg float64
+	// posAvg float32
+	// velAvg float32
 
 	// DWActivity
 	signL       int
@@ -108,8 +110,10 @@ func debugSetDWMonitor(vel float64) {
 	DWMonitor.windowpos = GetIntWindowPos()
 
 	_intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
-	DWMonitor.posAvg = exactPosAvg()
-	DWMonitor.velAvg = float32(vel)
+	DWMonitor.posAvg = exactPosTrace()
+	DWMonitor.velAvg = vel
+	// DWMonitor.posAvg = exactPosAvg()
+	// DWMonitor.velAvg = float32(vel)
 	DWMonitor.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
 
 	DWMonitor.rxy = _rpt[0]
@@ -129,12 +133,12 @@ func debugSetDWMonitor(vel float64) {
 
 func getExactPosAvg() float64 {
 	DWMonitor.update()
-	return float64(DWMonitor.posAvg)
+	return DWMonitor.posAvg
 }
 
 func getExactVelAvg() float64 {
 	DWMonitor.update()
-	return float64(DWMonitor.velAvg)
+	return DWMonitor.velAvg
 }
 
 func getAz() float64 {
@@ -165,7 +169,8 @@ func (s *activityStack) init() {
 	s.windowpos = GetIntWindowPos()
 
 	_intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
-	s.posAvg = exactPosAvg()
+	s.posAvg = exactPosTrace()
+	// s.posAvg = exactPosAvg()
 	s.velAvg = 0.0
 	s.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
 
@@ -193,8 +198,9 @@ func (s *activityStack) push() {
 
 	// DWVel_________________________
 	_intPosZC := getIntDWPos(_rpt[2])
-	_posAvg := exactPosAvg()
-	s.velAvg = (_posAvg - s.posAvg) / float32(_t-s.t)
+	_posAvg := exactPosTrace()
+	// _posAvg := exactPosAvg()
+	s.velAvg = (_posAvg - s.posAvg) / (_t-s.t)
 	s.posAvg = _posAvg
 	// DWVel_________________________
 
@@ -411,6 +417,21 @@ func averageRxy(rxyNew, rxyOld [][][]float32) [][][]float32 {
 		}
 	}
 	return ret
+}
+
+// Find the exact dw position by searching for zero crossings of mz along the x and y directions.
+// Take the average of the x-coordinate of these zero crossings to get the DW position.
+func exactPosTrace() float64 {
+
+	c := Mesh().CellSize()
+	wall := traceWall3D(M.Comp(Z).HostCopy().Scalars())
+	sum := 0
+	for i := range wall {
+		for j := range wall[i] {
+			sum += wall[i][j][1]
+		}
+	}
+	return GetShiftPos() + (c[X]*float64(sum) / float64(len(wall)*len(wall[0])))
 }
 
 // func exactPosAvg(mz [][][]float32) float64 {

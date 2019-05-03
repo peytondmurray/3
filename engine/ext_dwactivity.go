@@ -15,8 +15,6 @@ var (
 	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
 	DWWidth       = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", getDWWidth)
 	DWMonitor     activityStack // Most recent positions of DW speed
-	AverageDiff   = NewScalarValue("avgDiff", "", "CPU-GPU", avgDiff)
-	// SumSquareDiff = NewScalarValue("sumSqDiff", "", "Sum((CPU-GPU)^2)", sumSqDiff)
 )
 
 func init() {
@@ -71,8 +69,6 @@ type activityStack struct {
 	// DWVel
 	posAvg float64
 	velAvg float64
-	// posAvg float32
-	// velAvg float32
 
 	// DWActivity
 	signL       int
@@ -110,10 +106,8 @@ func debugSetDWMonitor(vel float64) {
 	DWMonitor.windowpos = GetIntWindowPos()
 
 	_intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
-	DWMonitor.posAvg = exactPosTrace()
+	DWMonitor.posAvg = exactPosAvg()
 	DWMonitor.velAvg = vel
-	// DWMonitor.posAvg = exactPosAvg()
-	// DWMonitor.velAvg = float32(vel)
 	DWMonitor.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
 
 	DWMonitor.rxy = _rpt[0]
@@ -169,8 +163,7 @@ func (s *activityStack) init() {
 	s.windowpos = GetIntWindowPos()
 
 	_intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
-	s.posAvg = exactPosTrace()
-	// s.posAvg = exactPosAvg()
+	s.posAvg = exactPosAvg()
 	s.velAvg = 0.0
 	s.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
 
@@ -198,8 +191,7 @@ func (s *activityStack) push() {
 
 	// DWVel_________________________
 	_intPosZC := getIntDWPos(_rpt[2])
-	_posAvg := exactPosTrace()
-	// _posAvg := exactPosAvg()
+	_posAvg := exactPosAvg()
 	s.velAvg = (_posAvg - s.posAvg) / (_t-s.t)
 	s.posAvg = _posAvg
 	// DWVel_________________________
@@ -435,7 +427,7 @@ func exactPosTrace() float64 {
 }
 
 // func exactPosAvg(mz [][][]float32) float64 {
-func exactPosAvg() float32 {
+func exactPosAvg() float64 {
 
 	ws := Mesh().WorldSize()
 
@@ -449,10 +441,10 @@ func exactPosAvg() float32 {
 	pct := 1.0 - (1.0-avg)/2.0
 
 	// Convert to actual position in window, then add on window shift
-	return pct*float32(ws[X]) + float32(GetShiftPos())
+	return pct*ws[X] + GetShiftPos()
 }
 
-func avgMz(mz [][][]float32) float32 {
+func avgMz(mz [][][]float32) float64 {
 	n := MeshSize()
 	sum := float32(0.0)
 	for i := range mz {
@@ -462,7 +454,7 @@ func avgMz(mz [][][]float32) float32 {
 			}
 		}
 	}
-	return sum / float32(n[X]*n[Y]*n[Z])
+	return float64(sum) / float64(n[X]*n[Y]*n[Z])
 }
 
 // Get the exact position of the domain wall from the zero crossing of Mz.

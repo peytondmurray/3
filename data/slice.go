@@ -296,6 +296,18 @@ func (s *Slice) SetVector(ix, iy, iz int, v Vector) {
 	}
 }
 
+func (s *Slice) SetVectorArray(arr [3][][][]float64) {
+	for c := 0; c < 3; c++ {
+		for iz := range arr[c] {
+			for iy := range arr[c][iz] {
+				for ix := range arr[c][iz][iy] {
+					s.Set(c, ix, iy, iz, arr[c][iz][iy][ix])
+				}
+			}
+		}
+	}
+}
+
 func (s *Slice) SetScalar(ix, iy, iz int, v float64) {
 	s.Host()[0][s.Index(ix, iy, iz)] = float32(v)
 }

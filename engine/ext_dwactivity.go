@@ -114,8 +114,8 @@ func debugSetDWMonitor(vel float64) {
 	DWMonitor.phi = _rpt[1]
 	DWMonitor.theta = _rpt[2]
 
-	DWMonitor.phidot = ZeroWorld()
-	DWMonitor.thetadot = ZeroWorld()
+	DWMonitor.phidot = ZeroWorldScalar32()
+	DWMonitor.thetadot = ZeroWorldScalar32()
 	DWMonitor.initialized = true
 
 	// DWWidth
@@ -171,8 +171,8 @@ func (s *activityStack) init() {
 	s.phi = _rpt[1]
 	s.theta = _rpt[2]
 
-	s.phidot = ZeroWorld()
-	s.thetadot = ZeroWorld()
+	s.phidot = ZeroWorldScalar32()
+	s.thetadot = ZeroWorldScalar32()
 	s.initialized = true
 
 	// DWWidth
@@ -192,7 +192,7 @@ func (s *activityStack) push() {
 	// DWVel_________________________
 	_intPosZC := getIntDWPos(_rpt[2])
 	_posAvg := exactPosAvg()
-	s.velAvg = (_posAvg - s.posAvg) / (_t-s.t)
+	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
 	s.posAvg = _posAvg
 	// DWVel_________________________
 
@@ -369,7 +369,7 @@ func angularVel(aNew, aOld [][][]float32, windowposNew, windowposOld int, tNew, 
 }
 
 // Make a slice the same size as the simulation, initialized with zeros.
-func ZeroWorld() [][][]float32 {
+func ZeroWorldScalar32() [][][]float32 {
 
 	n := MeshSize()
 
@@ -382,6 +382,34 @@ func ZeroWorld() [][][]float32 {
 				ret[i][j][k] = 0
 			}
 		}
+	}
+	return ret
+}
+
+// Make a slice the same size as the simulation, initialized with zeros.
+func ZeroWorldScalar64() [][][]float64 {
+
+	n := MeshSize()
+
+	ret := make([][][]float64, n[Z])
+	for i := 0; i < n[Z]; i++ {
+		ret[i] = make([][]float64, n[Y])
+		for j := 0; j < n[Y]; j++ {
+			ret[i][j] = make([]float64, n[X])
+			for k := 0; k < n[X]; k++ {
+				ret[i][j][k] = 0
+			}
+		}
+	}
+	return ret
+}
+
+// Make a slice the same size as the simulation, initialized with zeros.
+func ZeroWorldVector64() [3][][][]float64 {
+
+	ret := [3][][][]float64{}
+	for i := 0; i < 3; i++ {
+		ret[i] = ZeroWorldScalar64()
 	}
 	return ret
 }
@@ -423,7 +451,7 @@ func exactPosTrace() float64 {
 			sum += wall[i][j][1]
 		}
 	}
-	return GetShiftPos() + (c[X]*float64(sum) / float64(len(wall)*len(wall[0])))
+	return GetShiftPos() + (c[X] * float64(sum) / float64(len(wall)*len(wall[0])))
 }
 
 // func exactPosAvg(mz [][][]float32) float64 {
@@ -433,8 +461,8 @@ func exactPosAvg() float64 {
 
 	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function. They don't return
 	// exactly the same values, however...?
-	avg := avgMz(M.Comp(Z).HostCopy().Scalars())
-	// avg := float32(M.Comp(Z).Average())
+	// avg := avgMz(M.Comp(Z).HostCopy().Scalars())
+	avg := M.Comp(Z).Average()
 
 	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
 	// 50% are flipped up, the DW is 50% from the left side of the simulation window

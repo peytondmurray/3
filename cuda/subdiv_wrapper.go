@@ -12,11 +12,11 @@ import(
 	"sync"
 )
 
-// CUDA handle for setangularvel kernel
-var setangularvel_code cu.Function
+// CUDA handle for subdiv kernel
+var subdiv_code cu.Function
 
-// Stores the arguments for setangularvel kernel invocation
-type setangularvel_args_t struct{
+// Stores the arguments for subdiv kernel invocation
+type subdiv_args_t struct{
 	 arg_sx unsafe.Pointer
 	 arg_sy unsafe.Pointer
 	 arg_sz unsafe.Pointer
@@ -34,100 +34,100 @@ type setangularvel_args_t struct{
 	sync.Mutex
 }
 
-// Stores the arguments for setangularvel kernel invocation
-var setangularvel_args setangularvel_args_t
+// Stores the arguments for subdiv kernel invocation
+var subdiv_args subdiv_args_t
 
 func init(){
 	// CUDA driver kernel call wants pointers to arguments, set them up once.
-	 setangularvel_args.argptr[0] = unsafe.Pointer(&setangularvel_args.arg_sx)
-	 setangularvel_args.argptr[1] = unsafe.Pointer(&setangularvel_args.arg_sy)
-	 setangularvel_args.argptr[2] = unsafe.Pointer(&setangularvel_args.arg_sz)
-	 setangularvel_args.argptr[3] = unsafe.Pointer(&setangularvel_args.arg_ax)
-	 setangularvel_args.argptr[4] = unsafe.Pointer(&setangularvel_args.arg_ay)
-	 setangularvel_args.argptr[5] = unsafe.Pointer(&setangularvel_args.arg_az)
-	 setangularvel_args.argptr[6] = unsafe.Pointer(&setangularvel_args.arg_bx)
-	 setangularvel_args.argptr[7] = unsafe.Pointer(&setangularvel_args.arg_by)
-	 setangularvel_args.argptr[8] = unsafe.Pointer(&setangularvel_args.arg_bz)
-	 setangularvel_args.argptr[9] = unsafe.Pointer(&setangularvel_args.arg_dt)
-	 setangularvel_args.argptr[10] = unsafe.Pointer(&setangularvel_args.arg_Nx)
-	 setangularvel_args.argptr[11] = unsafe.Pointer(&setangularvel_args.arg_Ny)
-	 setangularvel_args.argptr[12] = unsafe.Pointer(&setangularvel_args.arg_Nz)
+	 subdiv_args.argptr[0] = unsafe.Pointer(&subdiv_args.arg_sx)
+	 subdiv_args.argptr[1] = unsafe.Pointer(&subdiv_args.arg_sy)
+	 subdiv_args.argptr[2] = unsafe.Pointer(&subdiv_args.arg_sz)
+	 subdiv_args.argptr[3] = unsafe.Pointer(&subdiv_args.arg_ax)
+	 subdiv_args.argptr[4] = unsafe.Pointer(&subdiv_args.arg_ay)
+	 subdiv_args.argptr[5] = unsafe.Pointer(&subdiv_args.arg_az)
+	 subdiv_args.argptr[6] = unsafe.Pointer(&subdiv_args.arg_bx)
+	 subdiv_args.argptr[7] = unsafe.Pointer(&subdiv_args.arg_by)
+	 subdiv_args.argptr[8] = unsafe.Pointer(&subdiv_args.arg_bz)
+	 subdiv_args.argptr[9] = unsafe.Pointer(&subdiv_args.arg_dt)
+	 subdiv_args.argptr[10] = unsafe.Pointer(&subdiv_args.arg_Nx)
+	 subdiv_args.argptr[11] = unsafe.Pointer(&subdiv_args.arg_Ny)
+	 subdiv_args.argptr[12] = unsafe.Pointer(&subdiv_args.arg_Nz)
 	 }
 
-// Wrapper for setangularvel CUDA kernel, asynchronous.
-func k_setangularvel_async ( sx unsafe.Pointer, sy unsafe.Pointer, sz unsafe.Pointer, ax unsafe.Pointer, ay unsafe.Pointer, az unsafe.Pointer, bx unsafe.Pointer, by unsafe.Pointer, bz unsafe.Pointer, dt float32, Nx int, Ny int, Nz int,  cfg *config) {
+// Wrapper for subdiv CUDA kernel, asynchronous.
+func k_subdiv_async ( sx unsafe.Pointer, sy unsafe.Pointer, sz unsafe.Pointer, ax unsafe.Pointer, ay unsafe.Pointer, az unsafe.Pointer, bx unsafe.Pointer, by unsafe.Pointer, bz unsafe.Pointer, dt float32, Nx int, Ny int, Nz int,  cfg *config) {
 	if Synchronous{ // debug
 		Sync()
-		timer.Start("setangularvel")
+		timer.Start("subdiv")
 	}
 
-	setangularvel_args.Lock()
-	defer setangularvel_args.Unlock()
+	subdiv_args.Lock()
+	defer subdiv_args.Unlock()
 
-	if setangularvel_code == 0{
-		setangularvel_code = fatbinLoad(setangularvel_map, "setangularvel")
+	if subdiv_code == 0{
+		subdiv_code = fatbinLoad(subdiv_map, "subdiv")
 	}
 
-	 setangularvel_args.arg_sx = sx
-	 setangularvel_args.arg_sy = sy
-	 setangularvel_args.arg_sz = sz
-	 setangularvel_args.arg_ax = ax
-	 setangularvel_args.arg_ay = ay
-	 setangularvel_args.arg_az = az
-	 setangularvel_args.arg_bx = bx
-	 setangularvel_args.arg_by = by
-	 setangularvel_args.arg_bz = bz
-	 setangularvel_args.arg_dt = dt
-	 setangularvel_args.arg_Nx = Nx
-	 setangularvel_args.arg_Ny = Ny
-	 setangularvel_args.arg_Nz = Nz
+	 subdiv_args.arg_sx = sx
+	 subdiv_args.arg_sy = sy
+	 subdiv_args.arg_sz = sz
+	 subdiv_args.arg_ax = ax
+	 subdiv_args.arg_ay = ay
+	 subdiv_args.arg_az = az
+	 subdiv_args.arg_bx = bx
+	 subdiv_args.arg_by = by
+	 subdiv_args.arg_bz = bz
+	 subdiv_args.arg_dt = dt
+	 subdiv_args.arg_Nx = Nx
+	 subdiv_args.arg_Ny = Ny
+	 subdiv_args.arg_Nz = Nz
 	
 
-	args := setangularvel_args.argptr[:]
-	cu.LaunchKernel(setangularvel_code, cfg.Grid.X, cfg.Grid.Y, cfg.Grid.Z, cfg.Block.X, cfg.Block.Y, cfg.Block.Z, 0, stream0, args)
+	args := subdiv_args.argptr[:]
+	cu.LaunchKernel(subdiv_code, cfg.Grid.X, cfg.Grid.Y, cfg.Grid.Z, cfg.Block.X, cfg.Block.Y, cfg.Block.Z, 0, stream0, args)
 
 	if Synchronous{ // debug
 		Sync()
-		timer.Stop("setangularvel")
+		timer.Stop("subdiv")
 	}
 }
 
-// maps compute capability on PTX code for setangularvel kernel.
-var setangularvel_map = map[int]string{ 0: "" ,
-30: setangularvel_ptx_30 ,
-35: setangularvel_ptx_35 ,
-37: setangularvel_ptx_37 ,
-50: setangularvel_ptx_50 ,
-52: setangularvel_ptx_52 ,
-53: setangularvel_ptx_53 ,
-60: setangularvel_ptx_60 ,
-61: setangularvel_ptx_61 ,
-70: setangularvel_ptx_70 ,
-75: setangularvel_ptx_75  }
+// maps compute capability on PTX code for subdiv kernel.
+var subdiv_map = map[int]string{ 0: "" ,
+30: subdiv_ptx_30 ,
+35: subdiv_ptx_35 ,
+37: subdiv_ptx_37 ,
+50: subdiv_ptx_50 ,
+52: subdiv_ptx_52 ,
+53: subdiv_ptx_53 ,
+60: subdiv_ptx_60 ,
+61: subdiv_ptx_61 ,
+70: subdiv_ptx_70 ,
+75: subdiv_ptx_75  }
 
-// setangularvel PTX code for various compute capabilities.
+// subdiv PTX code for various compute capabilities.
 const(
-  setangularvel_ptx_30 = `
+  subdiv_ptx_30 = `
 .version 6.4
 .target sm_30
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -136,19 +136,19 @@ const(
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;
@@ -211,27 +211,27 @@ BB0_2:
 
 
 `
-   setangularvel_ptx_35 = `
+   subdiv_ptx_35 = `
 .version 6.4
 .target sm_35
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -240,19 +240,19 @@ BB0_2:
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;
@@ -315,27 +315,27 @@ BB0_2:
 
 
 `
-   setangularvel_ptx_37 = `
+   subdiv_ptx_37 = `
 .version 6.4
 .target sm_37
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -344,19 +344,19 @@ BB0_2:
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;
@@ -419,27 +419,27 @@ BB0_2:
 
 
 `
-   setangularvel_ptx_50 = `
+   subdiv_ptx_50 = `
 .version 6.4
 .target sm_50
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -448,19 +448,19 @@ BB0_2:
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;
@@ -523,27 +523,27 @@ BB0_2:
 
 
 `
-   setangularvel_ptx_52 = `
+   subdiv_ptx_52 = `
 .version 6.4
 .target sm_52
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -552,19 +552,19 @@ BB0_2:
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;
@@ -627,27 +627,27 @@ BB0_2:
 
 
 `
-   setangularvel_ptx_53 = `
+   subdiv_ptx_53 = `
 .version 6.4
 .target sm_53
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -656,19 +656,19 @@ BB0_2:
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;
@@ -731,27 +731,27 @@ BB0_2:
 
 
 `
-   setangularvel_ptx_60 = `
+   subdiv_ptx_60 = `
 .version 6.4
 .target sm_60
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -760,19 +760,19 @@ BB0_2:
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;
@@ -835,27 +835,27 @@ BB0_2:
 
 
 `
-   setangularvel_ptx_61 = `
+   subdiv_ptx_61 = `
 .version 6.4
 .target sm_61
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -864,19 +864,19 @@ BB0_2:
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;
@@ -939,27 +939,27 @@ BB0_2:
 
 
 `
-   setangularvel_ptx_70 = `
+   subdiv_ptx_70 = `
 .version 6.4
 .target sm_70
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -968,19 +968,19 @@ BB0_2:
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;
@@ -1043,27 +1043,27 @@ BB0_2:
 
 
 `
-   setangularvel_ptx_75 = `
+   subdiv_ptx_75 = `
 .version 6.4
 .target sm_75
 .address_size 64
 
-	// .globl	setangularvel
+	// .globl	subdiv
 
-.visible .entry setangularvel(
-	.param .u64 setangularvel_param_0,
-	.param .u64 setangularvel_param_1,
-	.param .u64 setangularvel_param_2,
-	.param .u64 setangularvel_param_3,
-	.param .u64 setangularvel_param_4,
-	.param .u64 setangularvel_param_5,
-	.param .u64 setangularvel_param_6,
-	.param .u64 setangularvel_param_7,
-	.param .u64 setangularvel_param_8,
-	.param .f32 setangularvel_param_9,
-	.param .u32 setangularvel_param_10,
-	.param .u32 setangularvel_param_11,
-	.param .u32 setangularvel_param_12
+.visible .entry subdiv(
+	.param .u64 subdiv_param_0,
+	.param .u64 subdiv_param_1,
+	.param .u64 subdiv_param_2,
+	.param .u64 subdiv_param_3,
+	.param .u64 subdiv_param_4,
+	.param .u64 subdiv_param_5,
+	.param .u64 subdiv_param_6,
+	.param .u64 subdiv_param_7,
+	.param .u64 subdiv_param_8,
+	.param .f32 subdiv_param_9,
+	.param .u32 subdiv_param_10,
+	.param .u32 subdiv_param_11,
+	.param .u32 subdiv_param_12
 )
 {
 	.reg .pred 	%p<6>;
@@ -1072,19 +1072,19 @@ BB0_2:
 	.reg .b64 	%rd<29>;
 
 
-	ld.param.u64 	%rd1, [setangularvel_param_0];
-	ld.param.u64 	%rd2, [setangularvel_param_1];
-	ld.param.u64 	%rd3, [setangularvel_param_2];
-	ld.param.u64 	%rd4, [setangularvel_param_3];
-	ld.param.u64 	%rd5, [setangularvel_param_4];
-	ld.param.u64 	%rd6, [setangularvel_param_5];
-	ld.param.u64 	%rd7, [setangularvel_param_6];
-	ld.param.u64 	%rd8, [setangularvel_param_7];
-	ld.param.u64 	%rd9, [setangularvel_param_8];
-	ld.param.f32 	%f1, [setangularvel_param_9];
-	ld.param.u32 	%r4, [setangularvel_param_10];
-	ld.param.u32 	%r5, [setangularvel_param_11];
-	ld.param.u32 	%r6, [setangularvel_param_12];
+	ld.param.u64 	%rd1, [subdiv_param_0];
+	ld.param.u64 	%rd2, [subdiv_param_1];
+	ld.param.u64 	%rd3, [subdiv_param_2];
+	ld.param.u64 	%rd4, [subdiv_param_3];
+	ld.param.u64 	%rd5, [subdiv_param_4];
+	ld.param.u64 	%rd6, [subdiv_param_5];
+	ld.param.u64 	%rd7, [subdiv_param_6];
+	ld.param.u64 	%rd8, [subdiv_param_7];
+	ld.param.u64 	%rd9, [subdiv_param_8];
+	ld.param.f32 	%f1, [subdiv_param_9];
+	ld.param.u32 	%r4, [subdiv_param_10];
+	ld.param.u32 	%r5, [subdiv_param_11];
+	ld.param.u32 	%r6, [subdiv_param_12];
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %ntid.x;
 	mov.u32 	%r9, %tid.x;

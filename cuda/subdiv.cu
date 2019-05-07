@@ -1,10 +1,10 @@
 #include "stencil.h"
 
 extern "C" __global__ void
-setangularvel(float* __restrict__ sx, float* __restrict__ sy, float* __restrict__ sz,
-              float* __restrict__ ax, float* __restrict__ ay,float* __restrict__ az,
-              float* __restrict__ bx, float* __restrict__ by, float* __restrict__ bz,
-              float dt, int Nx, int Ny, int Nz) {
+subdiv(float* __restrict__ sx, float* __restrict__ sy, float* __restrict__ sz,
+       float* __restrict__ ax, float* __restrict__ ay,float* __restrict__ az,
+       float* __restrict__ bx, float* __restrict__ by, float* __restrict__ bz,
+       float dt, int Nx, int Ny, int Nz) {
 
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iy = blockIdx.y * blockDim.y + threadIdx.y;

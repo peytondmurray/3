@@ -1,10 +1,11 @@
 package engine
 
 import (
+	"github.com/mumax/3/data"
 	"github.com/mumax/3/mag"
 	// "log"
 	// "fmt"
-	// "github.com/mumax/3/cuda"
+	"github.com/mumax/3/cuda"
 	"math"
 )
 
@@ -87,6 +88,11 @@ type activityStack struct {
 	Az          float32
 	Axy         float32
 	initialized bool
+
+	// Pointers to rxy, phi, theta, and the angular velocities
+	p_rpt *data.Slice
+	p_pd  *data.Slice
+	p_td  *data.Slice
 }
 
 func (s *activityStack) update() {
@@ -187,6 +193,11 @@ func (s *activityStack) init() {
 	// DWWidth
 	s.width = avg2D(tanhFitDW(_rpt[2], _intPosZC, s.expectedHalfWidth))
 
+	// Set aside buffers for holding r, phi, and theta
+	s.p_rpt = cuda.Buffer(3, MeshSize()) // Possibly remove?
+	s.p_pd = cuda.Buffer(1, MeshSize())
+	s.p_td = cuda.Buffer(1, MeshSize())
+
 	return
 }
 
@@ -231,6 +242,33 @@ func (s *activityStack) push() {
 	s.lastStep = NSteps
 	s.phidot = _phidot
 	s.thetadot = _thetadot
+
+	return
+}
+
+// Version which only uses GPU computations, NO CPU!!
+func (s *activityStack) _push() {
+
+	_t := Time
+	_intPosZC := getIntDWPosZC()
+	_posAvg := exactPosAvg()
+	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
+	s.posAvg = _posAvg
+	s.width = getRowDWWidth()
+
+	_windowPos := GetIntWindowPos()
+	_windowShift := _windowPos - s.windowpos
+	// _rxyAvg := cuda.RxyAvg(s.p_rpt)
+	s.phiDot = cuda.angleSubDiv(ext_phi, s.p_rpt.Comp(1), _windowShift, _t-s.t)
+	s.thetaDot = cuda.angleSubDiv(ext_theta, s.p_rpt.Comp(2), _windowShift, _t-s.t)
+	s.Axy = cuda.Axy(s.p_pd, cuda.Avg(ext_rxy.Scalars(), s.p_rpt.Comp(0)), s.dwpos, s.maskWidth)
+	s.Az = cuda.Az(s.p_td, s.dwpos, s.maskWidth)
+
+	s.dwpos = _dwpos
+	s.windowpos = _windowPos
+	s.p_rpt = ext_rxyphitheta.Vectors()
+	s.t = _t
+	s.lastStep = NSteps
 
 	return
 }
@@ -463,14 +501,12 @@ func exactPosTrace() float64 {
 	return GetShiftPos() + (c[X] * float64(sum) / float64(len(wall)*len(wall[0])))
 }
 
-// func exactPosAvg(mz [][][]float32) float64 {
 func exactPosAvg() float64 {
 
 	ws := Mesh().WorldSize()
 
 	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function. They don't return
 	// exactly the same values, however...?
-	// avg := avgMz(M.Comp(Z).HostCopy().Scalars())
 	avg := M.Comp(Z).Average()
 
 	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if

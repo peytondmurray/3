@@ -13,6 +13,7 @@ var (
 	Axy           = NewScalarValue("ext_axy", "rad/s", "In-plane domain wall activity", getAxy)
 	ExactDWVelAvg = NewScalarValue("ext_exactdwvelavg", "m/s", "Speed of domain wall", getExactVelAvg)
 	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
+	ExactDWPosZC  = NewScalarValue("ext_exactdwposzc", "m", "Position of the domain wall from start", getExactPosZC)
 	DWWidth       = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", getDWWidth)
 	DWMonitor     activityStack // Most recent positions of DW speed
 )
@@ -123,6 +124,14 @@ func debugSetDWMonitor(vel float64) {
 
 	return
 
+}
+
+func getExactPosZC() float64 {
+	_rpt := ext_rxyphitheta.HostCopy().Vectors()
+	_mz := M.Comp(Z).HostCopy().Scalars()
+	_intPosZC := getIntDWPos(_rpt[2])
+
+	return float64(exactPosZC(_mz, _intPosZC))
 }
 
 func getExactPosAvg() float64 {

@@ -4,6 +4,7 @@
 // 3D array indexing
 #define index(ix,iy,iz,Nx,Ny,Nz) ( ( (iz)*(Ny) + (iy) ) * (Nx) + (ix) )
 #define idx(ix,iy,iz) ( index((ix),(iy),(iz),(Nx),(Ny),(Nz)) )
+#define idx2D(iy, iz) ((iz*Ny) + iy)
 
 
 // modulo used for PBC wrap around

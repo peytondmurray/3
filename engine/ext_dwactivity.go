@@ -15,7 +15,7 @@ var (
 	ExactDWVelAvg = NewScalarValue("ext_exactdwvelavg", "m/s", "Speed of domain wall", getExactVelAvg)
 	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
 	ExactDWPosZC  = NewScalarValue("ext_exactdwposzc", "m", "Position of the domain wall from start", getExactPosZC)
-	DWWidth       = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", getDWWidth)
+	DWWidthCPU    = NewScalarValue("ext_dwwidthcpu", "m", "Width of the domain wall, averaged along y.", getDWWidth)
 	DWMonitor     activityStack // Most recent positions of DW speed
 )
 
@@ -246,32 +246,32 @@ func (s *activityStack) push() {
 	return
 }
 
-// Version which only uses GPU computations, NO CPU!!
-func (s *activityStack) _push() {
+// // Version which only uses GPU computations, NO CPU!!
+// func (s *activityStack) _push() {
 
-	_t := Time
-	_intPosZC := getIntDWPosZC()
-	_posAvg := exactPosAvg()
-	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
-	s.posAvg = _posAvg
-	s.width = getRowDWWidth()
+// 	_t := Time
+// 	_intPosZC := getIntDWPosZC()
+// 	_posAvg := exactPosAvg()
+// 	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
+// 	s.posAvg = _posAvg
+// 	s.width = getRowDWWidth()
 
-	_windowPos := GetIntWindowPos()
-	_windowShift := _windowPos - s.windowpos
-	// _rxyAvg := cuda.RxyAvg(s.p_rpt)
-	s.phiDot = cuda.angleSubDiv(ext_phi, s.p_rpt.Comp(1), _windowShift, _t-s.t)
-	s.thetaDot = cuda.angleSubDiv(ext_theta, s.p_rpt.Comp(2), _windowShift, _t-s.t)
-	s.Axy = cuda.Axy(s.p_pd, cuda.Avg(ext_rxy.Scalars(), s.p_rpt.Comp(0)), s.dwpos, s.maskWidth)
-	s.Az = cuda.Az(s.p_td, s.dwpos, s.maskWidth)
+// 	_windowPos := GetIntWindowPos()
+// 	_windowShift := _windowPos - s.windowpos
+// 	// _rxyAvg := cuda.RxyAvg(s.p_rpt)
+// 	s.phiDot = cuda.angleSubDiv(ext_phi, s.p_rpt.Comp(1), _windowShift, _t-s.t)
+// 	s.thetaDot = cuda.angleSubDiv(ext_theta, s.p_rpt.Comp(2), _windowShift, _t-s.t)
+// 	s.Axy = cuda.Axy(s.p_pd, cuda.Avg(ext_rxy.Scalars(), s.p_rpt.Comp(0)), s.dwpos, s.maskWidth)
+// 	s.Az = cuda.Az(s.p_td, s.dwpos, s.maskWidth)
 
-	s.dwpos = _dwpos
-	s.windowpos = _windowPos
-	s.p_rpt = ext_rxyphitheta.Vectors()
-	s.t = _t
-	s.lastStep = NSteps
+// 	s.dwpos = _dwpos
+// 	s.windowpos = _windowPos
+// 	s.p_rpt = ext_rxyphitheta.Vectors()
+// 	s.t = _t
+// 	s.lastStep = NSteps
 
-	return
-}
+// 	return
+// }
 
 // Calculate the change in angle for two angles, taking into account the fact that 2*pi = 0. If the difference in angles
 // (a-b) is large, the vector is assumed to have wrapped around this boundary.
@@ -588,7 +588,8 @@ func tanhFitDW(theta [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
 
 	x := make([]float64, 2*halfwidth+1)
 	for i := range x {
-		x[i] = float64(i) * c[X]
+		// x[i] = float64(i) * c[X]
+		x[i] = float64(i)
 	}
 
 	width := make([][]float64, N[Z])
@@ -597,7 +598,7 @@ func tanhFitDW(theta [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
 		for j := range theta[i] {
 			leftBound := intPos[i][j] - halfwidth
 			rightBound := intPos[i][j] + halfwidth + 1
-			width[i][j] = inverseFitSlope(x, AtanhCos32_to_64(theta[i][j][leftBound:rightBound]))
+			width[i][j] = c[X]*inverseFitSlope(x, AtanhCos32_to_64(theta[i][j][leftBound:rightBound]))
 		}
 	}
 	return width
@@ -646,6 +647,7 @@ func mulSlice(a, b []float64) []float64 {
 
 func fitSlope1D(x, y []float64) float64 {
 	N := float64(len(x))
+
 
 	t4 := sumSlice(x)
 	t1 := N * sumSlice(mulSlice(x, y)) / t4

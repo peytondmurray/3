@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	DWWidth       = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", setDWWidth)
+	DWWidth     = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", setDWWidth)
 	DWHalfWidth = 10
 )
 
@@ -22,7 +22,9 @@ func setDWWidth() float64 {
 	defer widths.Free()
 	cuda.SetDWWidth(widths, M.Buffer(), DWHalfWidth)
 	_dww := widths.HostCopy().Host()
+	_M := M.Buffer().HostCopy().Host()[2][1015:1036]
 	print(len(_dww[0]))
-	ret := math.Abs(c[X]*float64(cuda.Sum(widths)/float32(n[Y]*n[Z])))
+	print(len(_M))
+	ret := math.Abs(c[X] * float64(cuda.Sum(widths)/float32(n[Y]*n[Z])))
 	return ret
 }

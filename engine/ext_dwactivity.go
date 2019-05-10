@@ -592,13 +592,15 @@ func tanhFitDW(theta [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
 		x[i] = float64(i)
 	}
 
+	//iLo: 1015, iHi: 1036
+
 	width := make([][]float64, N[Z])
 	for i := range theta {
 		width[i] = make([]float64, N[Y])
 		for j := range theta[i] {
 			leftBound := intPos[i][j] - halfwidth
 			rightBound := intPos[i][j] + halfwidth + 1
-			width[i][j] = c[X]*inverseFitSlope(x, AtanhCos32_to_64(theta[i][j][leftBound:rightBound]))
+			width[i][j] = c[X] * inverseFitSlope(x, AtanhCos32_to_64(theta[i][j][leftBound:rightBound]))
 		}
 	}
 	return width
@@ -648,11 +650,15 @@ func mulSlice(a, b []float64) []float64 {
 func fitSlope1D(x, y []float64) float64 {
 	N := float64(len(x))
 
-
 	t4 := sumSlice(x)
 	t1 := N * sumSlice(mulSlice(x, y)) / t4
 	t2 := sumSlice(y)
 	t3 := N * sumSlice(mulSlice(x, x)) / t4
+
+	// -38.53938
+	// 2.141331
+	// 287
+	// 210
 
 	return (t1 - t2) / (t3 - t4)
 }

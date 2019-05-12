@@ -2,7 +2,7 @@ package engine
 
 import (
 	"github.com/mumax/3/data"
-	"github.com/mumax/3/mag"
+	// "github.com/mumax/3/mag"
 	// "log"
 	// "fmt"
 	"github.com/mumax/3/cuda"

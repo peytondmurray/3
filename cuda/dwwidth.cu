@@ -29,11 +29,7 @@ extern "C" __global__ void avgDWWidth(float* __restrict__ s, float* __restrict__
     float t4 = sumXi*sumXi;
 
 
-    s[idx2D(iy, iz)] = (t3-t4)/(t1-t2);
-    // s[idx2D(iy, iz)] = (t1-t2)/(t3-t4);
-
-    // s[idx2D(iy, iz)] = (t3-t4)/(t1-t2);     // Inverse of the fit coefficient tanh(ax)
-    //                                         // gives the domain wall width (here, in units of the cellsize)
+    s[idx2D(iy, iz)] = (t3-t4)/(t1-t2); // This gives the inverse of the least squares fit slope to tanh(mz), i.e. the domain wall width (in units of the cell size).
 
     return;
 }

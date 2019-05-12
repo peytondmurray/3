@@ -8,46 +8,49 @@ extern "C" __global__ void avgDWWidth(float* __restrict__ s, float* __restrict__
     int iy = blockIdx.y * blockDim.y + threadIdx.y;
     int iz = blockIdx.z * blockDim.z + threadIdx.z;
 
-    if (_ix != 0 || iy >= Ny || iz >= Nz)
+    if (_ix > 1 || iy >= Ny || iz >= Nz)
     {
         return;
     }
 
-    int I = idx2D(iy, iz);
-
     // Find zero crossing along this row
     int ix = zcAlongY(mz, iy, iz, Nx, Ny, Nz);
 
+    // Find the lower and upper bounds for the region near the zero crossing
     int iLo = ix-halfWidth;
     int iHi = ix+halfWidth+1;
 
-    float N = float(2*halfWidth+1);                                     //# of points
-    float maxN = N-1;
+    float N = float(2*halfWidth+1); //# of cells running across the domain wall
 
-    float t4 = maxN*(maxN+1)/2;
-    float t1 = N*indexMulSumAtanh(mz, iLo, iHi, iy, iz, Nx, Ny, Nz)/t4; // inf most of the time
-    float t2 = sumAtanh(mz, iLo, iHi, iy, iz, Nx, Ny, Nz, s);           //Inf a bunch of the time
-    float t3 = N*(maxN*(maxN+1)*(2*maxN+1)/6.0)/t4;                     // N*Sum(n^2)
+    float sumXi = (N-1)*N/2;
+    float t1 = N*atanhMulIndSum(mz, iLo, iHi, iy, iz, Nx, Ny, Nz);
+    float t2 = atanhSum(mz, iLo, iHi, iy, iz, Nx, Ny, Nz)*sumXi;
+    float t3 = N*(N-1)*N*(2*N-1)/6.0;
+    float t4 = sumXi*sumXi;
 
-    s[I] = (t3-t4)/(t1-t2);                                             // Inverse of the fit coefficient tanh(ax)
-                                                                        // gives the domain wall width.
+
+    s[idx2D(iy, iz)] = (t3-t4)/(t1-t2);
+    // s[idx2D(iy, iz)] = (t1-t2)/(t3-t4);
+
+    // s[idx2D(iy, iz)] = (t3-t4)/(t1-t2);     // Inverse of the fit coefficient tanh(ax)
+    //                                         // gives the domain wall width (here, in units of the cellsize)
 
     return;
 }
 
-extern "C" __device__ float indexMulSumAtanh(float *arr, int ixLo, int ixHi, int iy, int iz, int Nx, int Ny, int Nz) {
+extern "C" __device__ float atanhMulIndSum(float *arr, int iLo, int iHi, int iy, int iz, int Nx, int Ny, int Nz) {
     float ret = 0;
     int k = 0;
-    for (int i=ixLo; i<ixHi; i++) {
+    for (int i=iLo; i<iHi; i++) {
         ret += float(k)*atanhf(arr[idx(i, iy, iz)]);
-        k ++;
+        k++;
     }
     return ret;
 }
 
-extern "C" __device__ float sumAtanh(float *arr, int ixLo, int ixHi, int iy, int iz, int Nx, int Ny, int Nz) {
+extern "C" __device__ float atanhSum(float *arr, int iLo, int iHi, int iy, int iz, int Nx, int Ny, int Nz) {
     float ret = 0;
-    for (int i=ixLo; i<ixHi; i++) {
+    for (int i=iLo; i<iHi; i++) {
         ret += atanhf(arr[idx(i, iy, iz)]);
     }
     return ret;

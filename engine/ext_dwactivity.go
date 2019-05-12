@@ -15,18 +15,15 @@ var (
 	ExactDWVelAvg = NewScalarValue("ext_exactdwvelavg", "m/s", "Speed of domain wall", getExactVelAvg)
 	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
 	ExactDWPosZC  = NewScalarValue("ext_exactdwposzc", "m", "Position of the domain wall from start", getExactPosZC)
-	DWWidthCPU    = NewScalarValue("ext_dwwidthcpu", "m", "Width of the domain wall, averaged along y.", getDWWidth)
 	DWMonitor     activityStack // Most recent positions of DW speed
 )
 
 func init() {
 	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(w, l, r) sets the mask width to w, the sign of M which is being inserted at the left l and right r sides of the simulation.")
-	DeclFunc("ext_dwactivityinitwidth", DWActivityInitWidth, "ext_dwactivityinitwidth(w, l, r, hw) sets the mask width to w, sign of M being inserted at left to l and right r sides of the simulation, and the domain wall width in cells.")
 	DeclFunc("ext_getphi", getPhi, "Get the current phi angle as a slice.")
 	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getphidot", getPhiDot, "Get the current phi angle as a slice.")
 	DeclFunc("ext_getthetadot", getThetaDot, "Get the current theta angle as a slice.")
-	DeclFunc("ext_getdwwidth2d", getDWWidth2D, "Get the domain wall width along each row.")
 	DeclFunc("ext_debug_setdw", debugSetDWMonitor, "Set DW parameters")
 }
 
@@ -39,34 +36,14 @@ func avgDiff() float64 {
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
 // of the domain wall are included in the domain wall activity
 func DWActivityInit(w int, l int, r int) {
-	expectedHalfWidth := IntRound(0.5 * getExpectedDWWidth() / float32(Mesh().CellSize()[X]))
-	DWActivityInitWidth(w, l, r, expectedHalfWidth)
-	return
-}
-
-// DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
-// of the domain wall are included in the domain wall activity.
-// The halfwidth is used for finding the domain wall thickness; increase this to include more fitting points across the
-// domain wall.
-func DWActivityInitWidth(w, l, r, hw int) {
 	DWMonitor.maskWidth = w
 	DWMonitor.signL = l
 	DWMonitor.signR = r
 	DWMonitor.initialized = false
-	DWMonitor.expectedHalfWidth = hw
-	if DWMonitor.expectedHalfWidth < 1 {
-		panic("Warning: DW half-width is less than 1 cell; decrease your cell size!")
-	}
 	return
 }
 
 type activityStack struct {
-
-	// Expected DW width, in units of cellsize[X]
-	expectedHalfWidth int
-
-	// DWWidth
-	width float64
 
 	// DWVel
 	posAvg float64
@@ -125,9 +102,6 @@ func debugSetDWMonitor(vel float64) {
 	DWMonitor.thetadot = ZeroWorldScalar32()
 	DWMonitor.initialized = true
 
-	// DWWidth
-	DWMonitor.width = avg2D(tanhFitDW(_rpt[2], _intPosZC, DWMonitor.expectedHalfWidth))
-
 	return
 
 }
@@ -160,11 +134,6 @@ func getAxy() float64 {
 	return float64(DWMonitor.Axy)
 }
 
-func getDWWidth() float64 {
-	DWMonitor.update()
-	return float64(DWMonitor.width)
-}
-
 func (s *activityStack) lastTime() float64 {
 	return s.t
 }
@@ -190,9 +159,6 @@ func (s *activityStack) init() {
 	s.thetadot = ZeroWorldScalar32()
 	s.initialized = true
 
-	// DWWidth
-	s.width = avg2D(tanhFitDW(_rpt[2], _intPosZC, s.expectedHalfWidth))
-
 	// Set aside buffers for holding r, phi, and theta
 	s.p_rpt = cuda.Buffer(3, MeshSize()) // Possibly remove?
 	s.p_pd = cuda.Buffer(1, MeshSize())
@@ -215,10 +181,6 @@ func (s *activityStack) push() {
 	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
 	s.posAvg = _posAvg
 	// DWVel_________________________
-
-	// DWWidth_______________________
-	s.width = avg2D(tanhFitDW(_rpt[2], _intPosZC, s.expectedHalfWidth))
-	// DWWidth_______________________
 
 	// Get new window and domain wall positions. Get the newest rxy, phi, theta values.
 	_windowpos := GetIntWindowPos()
@@ -245,33 +207,6 @@ func (s *activityStack) push() {
 
 	return
 }
-
-// // Version which only uses GPU computations, NO CPU!!
-// func (s *activityStack) _push() {
-
-// 	_t := Time
-// 	_intPosZC := getIntDWPosZC()
-// 	_posAvg := exactPosAvg()
-// 	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
-// 	s.posAvg = _posAvg
-// 	s.width = getRowDWWidth()
-
-// 	_windowPos := GetIntWindowPos()
-// 	_windowShift := _windowPos - s.windowpos
-// 	// _rxyAvg := cuda.RxyAvg(s.p_rpt)
-// 	s.phiDot = cuda.angleSubDiv(ext_phi, s.p_rpt.Comp(1), _windowShift, _t-s.t)
-// 	s.thetaDot = cuda.angleSubDiv(ext_theta, s.p_rpt.Comp(2), _windowShift, _t-s.t)
-// 	s.Axy = cuda.Axy(s.p_pd, cuda.Avg(ext_rxy.Scalars(), s.p_rpt.Comp(0)), s.dwpos, s.maskWidth)
-// 	s.Az = cuda.Az(s.p_td, s.dwpos, s.maskWidth)
-
-// 	s.dwpos = _dwpos
-// 	s.windowpos = _windowPos
-// 	s.p_rpt = ext_rxyphitheta.Vectors()
-// 	s.t = _t
-// 	s.lastStep = NSteps
-
-// 	return
-// }
 
 // Calculate the change in angle for two angles, taking into account the fact that 2*pi = 0. If the difference in angles
 // (a-b) is large, the vector is assumed to have wrapped around this boundary.
@@ -576,110 +511,4 @@ func avg2D(a [][]float64) float64 {
 		}
 	}
 	return ret / float64(len(a)*len(a[0]))
-}
-
-// func tanhFitDW(mz [][][]float32, intPos [][]int, halfwidth int) [][]float32 {
-
-// Fit a tanh function to each row of mz; returns a float64 since golang's math functions only operate only on
-// float64.
-func tanhFitDW(theta [][][]float32, intPos [][]int, halfwidth int) [][]float64 {
-	c := Mesh().CellSize()
-	N := MeshSize()
-
-	x := make([]float64, 2*halfwidth+1)
-	for i := range x {
-		// x[i] = float64(i) * c[X]
-		x[i] = float64(i)
-	}
-
-	//iLo: 1015, iHi: 1036
-
-	width := make([][]float64, N[Z])
-	for i := range theta {
-		width[i] = make([]float64, N[Y])
-		for j := range theta[i] {
-			leftBound := intPos[i][j] - halfwidth
-			rightBound := intPos[i][j] + halfwidth + 1
-			width[i][j] = c[X] * inverseFitSlope(x, AtanhCos32_to_64(theta[i][j][leftBound:rightBound]))
-		}
-	}
-	return width
-}
-
-func AtanhCos32_to_64(theta []float32) []float64 {
-
-	ret := make([]float64, len(theta))
-	for i := range theta {
-		ret[i] = math.Atanh(math.Cos(float64(theta[i])))
-	}
-	return ret
-}
-
-func inverseFitSlope(x, y []float64) float64 {
-	return math.Abs(1.0 / float64(fitSlope1D(x, y)))
-}
-
-func getExpectedDWWidth() float32 {
-
-	Keff := Ku1.Average() - 0.5*mag.Mu0*math.Pow(Msat.Average(), 2)
-	DWWidthAnisotropy := float32(math.Sqrt(Aex.Average() / Keff))
-	DWWidthDemag := float32(math.Sqrt(2 * Aex.Average() / (mag.Mu0 * math.Pow(Msat.Average(), 2))))
-
-	if DWWidthAnisotropy < DWWidthDemag {
-		return DWWidthAnisotropy
-	}
-	return DWWidthDemag
-}
-
-func sum(s []float64) float64 {
-	ret := 0.0
-	for i := range s {
-		ret += s[i]
-	}
-	return ret
-}
-
-func mul(a, b []float64) []float64 {
-	ret := make([]float64, len(a))
-	for i := range a {
-		ret[i] = a[i] * b[i]
-	}
-	return ret
-}
-
-func outersum(a, b []float64) float64 {
-	ret := 0.0
-	for i := range a {
-		for j := range b {
-			ret += a[i] * b[j]
-		}
-	}
-	return ret
-}
-
-func fitSlope1D(x, y []float64) float64 {
-	N := float64(len(x))
-
-	t1 := N * sum(mul(x, y))
-	t2 := outersum(x, y)
-	t3 := N * sum(mul(x, x))
-	t4 := outersum(x, x)
-
-	// t4 := sumSlice(x)
-	// t1 := N * sumSlice(mulSlice(x, y)) / t4
-	// t2 := sumSlice(y)
-	// t3 := N * sumSlice(mulSlice(x, x)) / t4
-
-	// -38.53938
-	// 2.141331
-	// 287
-	// 210
-
-	return (t1 - t2) / (t3 - t4)
-}
-
-func getDWWidth2D() [][]float64 {
-	_theta := ext_rxyphitheta.Comp(2).HostCopy().Scalars()
-	_intPosZC := getIntDWPos(_theta)
-	return tanhFitDW(_theta, _intPosZC, DWMonitor.expectedHalfWidth)
 }

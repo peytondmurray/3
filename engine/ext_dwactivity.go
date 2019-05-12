@@ -631,7 +631,7 @@ func getExpectedDWWidth() float32 {
 	return DWWidthDemag
 }
 
-func sumSlice(s []float64) float64 {
+func sum(s []float64) float64 {
 	ret := 0.0
 	for i := range s {
 		ret += s[i]
@@ -639,7 +639,7 @@ func sumSlice(s []float64) float64 {
 	return ret
 }
 
-func mulSlice(a, b []float64) []float64 {
+func mul(a, b []float64) []float64 {
 	ret := make([]float64, len(a))
 	for i := range a {
 		ret[i] = a[i] * b[i]
@@ -647,13 +647,28 @@ func mulSlice(a, b []float64) []float64 {
 	return ret
 }
 
+func outersum(a, b []float64) float64 {
+	ret := 0.0
+	for i := range a {
+		for j := range b {
+			ret += a[i] * b[j]
+		}
+	}
+	return ret
+}
+
 func fitSlope1D(x, y []float64) float64 {
 	N := float64(len(x))
 
-	t4 := sumSlice(x)
-	t1 := N * sumSlice(mulSlice(x, y)) / t4
-	t2 := sumSlice(y)
-	t3 := N * sumSlice(mulSlice(x, x)) / t4
+	t1 := N * sum(mul(x, y))
+	t2 := outersum(x, y)
+	t3 := N * sum(mul(x, x))
+	t4 := outersum(x, x)
+
+	// t4 := sumSlice(x)
+	// t1 := N * sumSlice(mulSlice(x, y)) / t4
+	// t2 := sumSlice(y)
+	// t3 := N * sumSlice(mulSlice(x, x)) / t4
 
 	// -38.53938
 	// 2.141331

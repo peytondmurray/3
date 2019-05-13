@@ -173,14 +173,7 @@ func (s *activityStack) init() {
 
 func (s *activityStack) push() {
 
-	t0 := time.Now()
-
 	n := MeshSize()
-
-	// Update the DW and window positions; put new values of the angles into the new slots.
-	// Get the new magnetization configuration
-	// _rpt := ext_rxyphitheta.HostCopy().Vectors()
-
 	_t := Time
 
 	// DWVel_________________________
@@ -192,8 +185,6 @@ func (s *activityStack) push() {
 
 	// Get new window and domain wall positions. Get the newest rxy, phi, theta values.
 	_windowpos := GetIntWindowPos()
-	// _dwpos := GetNearestIntDWPos(_rpt[2], _intPosZC) //Not sure this makes any difference at all
-	// _dwpos := _intPosZC
 
 	// Allocate GPU memory to hold intermediate quantities
 	_dwposGPU := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
@@ -201,40 +192,18 @@ func (s *activityStack) push() {
 	_pdGPU := cuda.Buffer(1, n)
 	_tdGPU := cuda.Buffer(1, n)
 	_rptGPU := cuda.Buffer(3, n)
-	defer cuda.Recycle(_rxyAvgGPU) // Better to keep allocated?
+	defer cuda.Recycle(_rxyAvgGPU) // Free it when we return from the function, we don't use it after calculating Axy
 
 	ext_rxyphitheta.EvalTo(_rptGPU)
-	cuda.SetDomainWallIndices(_dwposGPU, M.Buffer()) // checked - good
+	cuda.SetDomainWallIndices(_dwposGPU, M.Buffer())
 
 	// Average the rxy from last step and this step
-	cuda.AvgSlices(_rxyAvgGPU, _rptGPU.Comp(0), s.rptGPU.Comp(0))                               // checked - good
+	cuda.AvgSlices(_rxyAvgGPU, _rptGPU.Comp(0), s.rptGPU.Comp(0))
 	cuda.SubDivAngle(_pdGPU, _rptGPU.Comp(1), s.rptGPU.Comp(1), _windowpos-s.windowpos, _t-s.t) // ang. vel. phi
 	cuda.SubDivAngle(_tdGPU, _rptGPU.Comp(2), s.rptGPU.Comp(2), _windowpos-s.windowpos, _t-s.t) // ang. vel. theta
 
 	s.Axy = cuda.Axy(_pdGPU, _rxyAvgGPU, s.dwposGPU, MaskWidth)
 	s.Az = cuda.Az(_tdGPU, s.dwposGPU, MaskWidth)
-
-	// _rxyAvg := averageRxy(_rpt[0], s.rxy)
-	// _phidot := angularVel(_rpt[1], s.phi, _windowpos-s.windowpos, float32(_t-s.t))
-	// _thetadot := angularVel(_rpt[2], s.theta, _windowpos-s.windowpos, float32(_t-s.t))
-
-	// Calculate Axy and Az by summing the angular velocity of the cells which were near the domain wall at the
-	// last step (i.e., within maskWidth cells of the old dwpos).
-	// s.Axy = calcAxy(_phidot, _rxyAvg, s.dwpos, s.maskWidth)
-	// s.Az = calcAz(_thetadot, s.dwpos, s.maskWidth)
-
-	// print(isClose(float64(_Axy), float64(s.Axy), 1e-4, 1e-8), isClose(float64(_Az), float64(s.Az), 1e-4, 1e-8))
-	// print(fmt.Sprintf("Axy: %8.8E %8.8E Az: %8.8E %8.8E\n", _Axy, s.Axy, _Az, s.Az))
-
-	// s.windowpos = _windowpos
-	// s.dwpos = _dwpos
-	// s.rxy = _rpt[0]
-	// s.phi = _rpt[1]
-	// s.theta = _rpt[2]
-	// s.t = _t
-	// s.lastStep = NSteps
-	// s.phidot = _phidot
-	// s.thetadot = _thetadot
 
 	s.dwposGPU.Free()
 	s.rptGPU.Free()
@@ -249,8 +218,6 @@ func (s *activityStack) push() {
 	s.lastStep = NSteps
 	s.pdGPU = _pdGPU
 	s.tdGPU = _tdGPU
-
-	print(fmt.Sprintf("%3.3E ns\n", float64(time.Since(t0).Nanoseconds())))
 
 	return
 }

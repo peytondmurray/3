@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/mumax/3/cuda"
 	"math"
+	"time"
 )
 
 var (
@@ -172,16 +173,18 @@ func (s *activityStack) init() {
 
 func (s *activityStack) push() {
 
+	t0 := time.Now()
+
 	n := MeshSize()
 
 	// Update the DW and window positions; put new values of the angles into the new slots.
 	// Get the new magnetization configuration
-	_rpt := ext_rxyphitheta.HostCopy().Vectors()
+	// _rpt := ext_rxyphitheta.HostCopy().Vectors()
 
 	_t := Time
 
 	// DWVel_________________________
-	_intPosZC := getIntDWPos(_rpt[2])
+	// _intPosZC := getIntDWPos(_rpt[2])
 	_posAvg := exactPosAvg()
 	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
 	s.posAvg = _posAvg
@@ -190,7 +193,7 @@ func (s *activityStack) push() {
 	// Get new window and domain wall positions. Get the newest rxy, phi, theta values.
 	_windowpos := GetIntWindowPos()
 	// _dwpos := GetNearestIntDWPos(_rpt[2], _intPosZC) //Not sure this makes any difference at all
-	_dwpos := _intPosZC
+	// _dwpos := _intPosZC
 
 	// Allocate GPU memory to hold intermediate quantities
 	_dwposGPU := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
@@ -208,46 +211,30 @@ func (s *activityStack) push() {
 	cuda.SubDivAngle(_pdGPU, _rptGPU.Comp(1), s.rptGPU.Comp(1), _windowpos-s.windowpos, _t-s.t) // ang. vel. phi
 	cuda.SubDivAngle(_tdGPU, _rptGPU.Comp(2), s.rptGPU.Comp(2), _windowpos-s.windowpos, _t-s.t) // ang. vel. theta
 
-	_Axy := cuda.Axy(_pdGPU, _rxyAvgGPU, s.dwposGPU, MaskWidth)
-	_Az := cuda.Az(_tdGPU, s.dwposGPU, MaskWidth)
+	s.Axy = cuda.Axy(_pdGPU, _rxyAvgGPU, s.dwposGPU, MaskWidth)
+	s.Az = cuda.Az(_tdGPU, s.dwposGPU, MaskWidth)
 
-	_rxyAvg := averageRxy(_rpt[0], s.rxy)
-	_phidot := angularVel(_rpt[1], s.phi, _windowpos-s.windowpos, float32(_t-s.t))
-	_thetadot := angularVel(_rpt[2], s.theta, _windowpos-s.windowpos, float32(_t-s.t))
-
-	// _tmp := cuda.Buffer(1, n)
-	// cuda.Mul(_tmp, _pdGPU, _rxyAvgGPU)
-	// _tmp := cuda.GetNearDW(_rptGPU.Comp(2), s.dwposGPU, MaskWidth).HostCopy().Scalars()
-	// _tmpCPU := getNearDWCPU(_rpt[2], s.dwpos, MaskWidth)
-
-	// print(len(_tmp), len(_tmpCPU))
+	// _rxyAvg := averageRxy(_rpt[0], s.rxy)
+	// _phidot := angularVel(_rpt[1], s.phi, _windowpos-s.windowpos, float32(_t-s.t))
+	// _thetadot := angularVel(_rpt[2], s.theta, _windowpos-s.windowpos, float32(_t-s.t))
 
 	// Calculate Axy and Az by summing the angular velocity of the cells which were near the domain wall at the
 	// last step (i.e., within maskWidth cells of the old dwpos).
-	s.Axy = calcAxy(_phidot, _rxyAvg, s.dwpos, s.maskWidth)
-	s.Az = calcAz(_thetadot, s.dwpos, s.maskWidth)
+	// s.Axy = calcAxy(_phidot, _rxyAvg, s.dwpos, s.maskWidth)
+	// s.Az = calcAz(_thetadot, s.dwpos, s.maskWidth)
 
 	// print(isClose(float64(_Axy), float64(s.Axy), 1e-4, 1e-8), isClose(float64(_Az), float64(s.Az), 1e-4, 1e-8))
-	print(fmt.Sprintf("Axy: %8.8E %8.8E Az: %8.8E %8.8E\n", _Axy, s.Axy, _Az, s.Az))
+	// print(fmt.Sprintf("Axy: %8.8E %8.8E Az: %8.8E %8.8E\n", _Axy, s.Axy, _Az, s.Az))
 
-	// _tmp := _pdGPU.HostCopy().Scalars()
-	// print(isSliceClose(_tmp, _phidot))
-	// print(isEqual(to2D(_dwposGPU.HostCopy().Scalars()), _dwpos))
-
-	// saveVTK(toFloat64(M.Comp(2).HostCopy().Scalars()), "mData")
-	// diffMap(_pdGPU.HostCopy().Scalars(), _phidot, "phidot")
-	// diffMap(_rpt[1], _rptGPU.Comp(1).HostCopy().Scalars(), "phi")
-	// diffMap(_tdGPU.HostCopy().Scalars(), _thetadot, "thetadot")
-
-	s.windowpos = _windowpos
-	s.dwpos = _dwpos
-	s.rxy = _rpt[0]
-	s.phi = _rpt[1]
-	s.theta = _rpt[2]
-	s.t = _t
-	s.lastStep = NSteps
-	s.phidot = _phidot
-	s.thetadot = _thetadot
+	// s.windowpos = _windowpos
+	// s.dwpos = _dwpos
+	// s.rxy = _rpt[0]
+	// s.phi = _rpt[1]
+	// s.theta = _rpt[2]
+	// s.t = _t
+	// s.lastStep = NSteps
+	// s.phidot = _phidot
+	// s.thetadot = _thetadot
 
 	s.dwposGPU.Free()
 	s.rptGPU.Free()
@@ -255,15 +242,15 @@ func (s *activityStack) push() {
 	s.tdGPU.Free()
 
 	// To be done after the other stuff!
-	// s.windowpos = _windowpos
+	s.windowpos = _windowpos
 	s.dwposGPU = _dwposGPU
 	s.rptGPU = _rptGPU
-	// s.t = _t
-	// s.lastStep = NSteps
+	s.t = _t
+	s.lastStep = NSteps
 	s.pdGPU = _pdGPU
 	s.tdGPU = _tdGPU
 
-	// print(fmt.Sprintf("Axy GPU: %3.3E | Axy CPU: %3.3E ||| Az GPU: %3.3E | Az CPU: %3.3E\n", _Axy, s.Axy, _Az, s.Az))
+	print(fmt.Sprintf("%3.3E ns\n", float64(time.Since(t0).Nanoseconds())))
 
 	return
 }

@@ -1,17 +1,17 @@
 #include "stencil.h"
 #include "subset.h"
 
-extern "C" __global__ void subsetAlongX(float* __restrict__ s, float* __restrict__ a, float* __restrict__ lowerBound,
-                                        float* __restrict__ upperBound, int NxSubset, int Nx, int Ny, int Nz) {
+extern "C" __global__ void nearDW(float* __restrict__ s, float* __restrict__ a, float* __restrict__ dwpos,
+                                  int mw, int Nx, int Ny, int Nz) {
 
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iy = blockIdx.y * blockDim.y + threadIdx.y;
     int iz = blockIdx.z * blockDim.z + threadIdx.z;
 
-    if (ix >= Nx || iy >= Ny || iz >= Nz) return;
-    if (ix < int(lowerBound[idx2D(iy, iz)]+0.5) || ix > int(upperBound[idx2D(iy, iz)])+0.5) return;
+    if (ix >= 2*mw+1 || iy >= Ny || iz >= Nz) return;
 
-    s[idxSubset(ix-int(lowerBound[idx2D(iy, iz)]+0.5), iy, iz, NxSubset, Ny, Nz)] = a[idx(ix, iy, iz)];
+    s[idxSubset(ix, iy, iz, 2*mw+1, Ny, Nz)] = a[idx(int(dwpos[idx2D(iy, iz)] + ix - mw + 0.5), iy, iz)];
+    // s[idxSubset(ix, iy, iz, 2*mw+1, Ny, Nz)] = int(dwpos[idx2D(iy, iz)] + ix - mw + 0.5); // Set s to be the index, for debugging purposes
 
     return;
 }

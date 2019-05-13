@@ -12,1011 +12,888 @@ import(
 	"sync"
 )
 
-// CUDA handle for subsetAlongX kernel
-var subsetAlongX_code cu.Function
+// CUDA handle for nearDW kernel
+var nearDW_code cu.Function
 
-// Stores the arguments for subsetAlongX kernel invocation
-type subsetAlongX_args_t struct{
+// Stores the arguments for nearDW kernel invocation
+type nearDW_args_t struct{
 	 arg_s unsafe.Pointer
 	 arg_a unsafe.Pointer
-	 arg_lowerBound unsafe.Pointer
-	 arg_upperBound unsafe.Pointer
-	 arg_NxSubset int
+	 arg_dwpos unsafe.Pointer
+	 arg_mw int
 	 arg_Nx int
 	 arg_Ny int
 	 arg_Nz int
-	 argptr [8]unsafe.Pointer
+	 argptr [7]unsafe.Pointer
 	sync.Mutex
 }
 
-// Stores the arguments for subsetAlongX kernel invocation
-var subsetAlongX_args subsetAlongX_args_t
+// Stores the arguments for nearDW kernel invocation
+var nearDW_args nearDW_args_t
 
 func init(){
 	// CUDA driver kernel call wants pointers to arguments, set them up once.
-	 subsetAlongX_args.argptr[0] = unsafe.Pointer(&subsetAlongX_args.arg_s)
-	 subsetAlongX_args.argptr[1] = unsafe.Pointer(&subsetAlongX_args.arg_a)
-	 subsetAlongX_args.argptr[2] = unsafe.Pointer(&subsetAlongX_args.arg_lowerBound)
-	 subsetAlongX_args.argptr[3] = unsafe.Pointer(&subsetAlongX_args.arg_upperBound)
-	 subsetAlongX_args.argptr[4] = unsafe.Pointer(&subsetAlongX_args.arg_NxSubset)
-	 subsetAlongX_args.argptr[5] = unsafe.Pointer(&subsetAlongX_args.arg_Nx)
-	 subsetAlongX_args.argptr[6] = unsafe.Pointer(&subsetAlongX_args.arg_Ny)
-	 subsetAlongX_args.argptr[7] = unsafe.Pointer(&subsetAlongX_args.arg_Nz)
+	 nearDW_args.argptr[0] = unsafe.Pointer(&nearDW_args.arg_s)
+	 nearDW_args.argptr[1] = unsafe.Pointer(&nearDW_args.arg_a)
+	 nearDW_args.argptr[2] = unsafe.Pointer(&nearDW_args.arg_dwpos)
+	 nearDW_args.argptr[3] = unsafe.Pointer(&nearDW_args.arg_mw)
+	 nearDW_args.argptr[4] = unsafe.Pointer(&nearDW_args.arg_Nx)
+	 nearDW_args.argptr[5] = unsafe.Pointer(&nearDW_args.arg_Ny)
+	 nearDW_args.argptr[6] = unsafe.Pointer(&nearDW_args.arg_Nz)
 	 }
 
-// Wrapper for subsetAlongX CUDA kernel, asynchronous.
-func k_subsetAlongX_async ( s unsafe.Pointer, a unsafe.Pointer, lowerBound unsafe.Pointer, upperBound unsafe.Pointer, NxSubset int, Nx int, Ny int, Nz int,  cfg *config) {
+// Wrapper for nearDW CUDA kernel, asynchronous.
+func k_nearDW_async ( s unsafe.Pointer, a unsafe.Pointer, dwpos unsafe.Pointer, mw int, Nx int, Ny int, Nz int,  cfg *config) {
 	if Synchronous{ // debug
 		Sync()
-		timer.Start("subsetAlongX")
+		timer.Start("nearDW")
 	}
 
-	subsetAlongX_args.Lock()
-	defer subsetAlongX_args.Unlock()
+	nearDW_args.Lock()
+	defer nearDW_args.Unlock()
 
-	if subsetAlongX_code == 0{
-		subsetAlongX_code = fatbinLoad(subsetAlongX_map, "subsetAlongX")
+	if nearDW_code == 0{
+		nearDW_code = fatbinLoad(nearDW_map, "nearDW")
 	}
 
-	 subsetAlongX_args.arg_s = s
-	 subsetAlongX_args.arg_a = a
-	 subsetAlongX_args.arg_lowerBound = lowerBound
-	 subsetAlongX_args.arg_upperBound = upperBound
-	 subsetAlongX_args.arg_NxSubset = NxSubset
-	 subsetAlongX_args.arg_Nx = Nx
-	 subsetAlongX_args.arg_Ny = Ny
-	 subsetAlongX_args.arg_Nz = Nz
+	 nearDW_args.arg_s = s
+	 nearDW_args.arg_a = a
+	 nearDW_args.arg_dwpos = dwpos
+	 nearDW_args.arg_mw = mw
+	 nearDW_args.arg_Nx = Nx
+	 nearDW_args.arg_Ny = Ny
+	 nearDW_args.arg_Nz = Nz
 	
 
-	args := subsetAlongX_args.argptr[:]
-	cu.LaunchKernel(subsetAlongX_code, cfg.Grid.X, cfg.Grid.Y, cfg.Grid.Z, cfg.Block.X, cfg.Block.Y, cfg.Block.Z, 0, stream0, args)
+	args := nearDW_args.argptr[:]
+	cu.LaunchKernel(nearDW_code, cfg.Grid.X, cfg.Grid.Y, cfg.Grid.Z, cfg.Block.X, cfg.Block.Y, cfg.Block.Z, 0, stream0, args)
 
 	if Synchronous{ // debug
 		Sync()
-		timer.Stop("subsetAlongX")
+		timer.Stop("nearDW")
 	}
 }
 
-// maps compute capability on PTX code for subsetAlongX kernel.
-var subsetAlongX_map = map[int]string{ 0: "" ,
-30: subsetAlongX_ptx_30 ,
-35: subsetAlongX_ptx_35 ,
-37: subsetAlongX_ptx_37 ,
-50: subsetAlongX_ptx_50 ,
-52: subsetAlongX_ptx_52 ,
-53: subsetAlongX_ptx_53 ,
-60: subsetAlongX_ptx_60 ,
-61: subsetAlongX_ptx_61 ,
-70: subsetAlongX_ptx_70 ,
-75: subsetAlongX_ptx_75  }
+// maps compute capability on PTX code for nearDW kernel.
+var nearDW_map = map[int]string{ 0: "" ,
+30: nearDW_ptx_30 ,
+35: nearDW_ptx_35 ,
+37: nearDW_ptx_37 ,
+50: nearDW_ptx_50 ,
+52: nearDW_ptx_52 ,
+53: nearDW_ptx_53 ,
+60: nearDW_ptx_60 ,
+61: nearDW_ptx_61 ,
+70: nearDW_ptx_70 ,
+75: nearDW_ptx_75  }
 
-// subsetAlongX PTX code for various compute capabilities.
+// nearDW PTX code for various compute capabilities.
 const(
-  subsetAlongX_ptx_30 = `
+  nearDW_ptx_30 = `
 .version 6.4
 .target sm_30
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 
 
 `
-   subsetAlongX_ptx_35 = `
+   nearDW_ptx_35 = `
 .version 6.4
 .target sm_35
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.nc.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.nc.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.nc.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.nc.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.nc.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 
 
 `
-   subsetAlongX_ptx_37 = `
+   nearDW_ptx_37 = `
 .version 6.4
 .target sm_37
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.nc.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.nc.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.nc.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.nc.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.nc.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 
 
 `
-   subsetAlongX_ptx_50 = `
+   nearDW_ptx_50 = `
 .version 6.4
 .target sm_50
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.nc.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.nc.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.nc.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.nc.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.nc.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 
 
 `
-   subsetAlongX_ptx_52 = `
+   nearDW_ptx_52 = `
 .version 6.4
 .target sm_52
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.nc.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.nc.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.nc.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.nc.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.nc.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 
 
 `
-   subsetAlongX_ptx_53 = `
+   nearDW_ptx_53 = `
 .version 6.4
 .target sm_53
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.nc.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.nc.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.nc.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.nc.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.nc.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 
 
 `
-   subsetAlongX_ptx_60 = `
+   nearDW_ptx_60 = `
 .version 6.4
 .target sm_60
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.nc.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.nc.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.nc.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.nc.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.nc.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 
 
 `
-   subsetAlongX_ptx_61 = `
+   nearDW_ptx_61 = `
 .version 6.4
 .target sm_61
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.nc.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.nc.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.nc.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.nc.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.nc.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 
 
 `
-   subsetAlongX_ptx_70 = `
+   nearDW_ptx_70 = `
 .version 6.4
 .target sm_70
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.nc.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.nc.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.nc.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.nc.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.nc.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 
 
 `
-   subsetAlongX_ptx_75 = `
+   nearDW_ptx_75 = `
 .version 6.4
 .target sm_75
 .address_size 64
 
-	// .globl	subsetAlongX
+	// .globl	nearDW
 
-.visible .entry subsetAlongX(
-	.param .u64 subsetAlongX_param_0,
-	.param .u64 subsetAlongX_param_1,
-	.param .u64 subsetAlongX_param_2,
-	.param .u64 subsetAlongX_param_3,
-	.param .u32 subsetAlongX_param_4,
-	.param .u32 subsetAlongX_param_5,
-	.param .u32 subsetAlongX_param_6,
-	.param .u32 subsetAlongX_param_7
+.visible .entry nearDW(
+	.param .u64 nearDW_param_0,
+	.param .u64 nearDW_param_1,
+	.param .u64 nearDW_param_2,
+	.param .u32 nearDW_param_3,
+	.param .u32 nearDW_param_4,
+	.param .u32 nearDW_param_5,
+	.param .u32 nearDW_param_6
 )
 {
-	.reg .pred 	%p<8>;
-	.reg .f32 	%f<4>;
-	.reg .b32 	%r<24>;
-	.reg .f64 	%fd<6>;
-	.reg .b64 	%rd<18>;
+	.reg .pred 	%p<6>;
+	.reg .f32 	%f<7>;
+	.reg .b32 	%r<23>;
+	.reg .f64 	%fd<3>;
+	.reg .b64 	%rd<13>;
 
 
-	ld.param.u64 	%rd2, [subsetAlongX_param_0];
-	ld.param.u64 	%rd3, [subsetAlongX_param_1];
-	ld.param.u64 	%rd4, [subsetAlongX_param_2];
-	ld.param.u64 	%rd5, [subsetAlongX_param_3];
-	ld.param.u32 	%r6, [subsetAlongX_param_4];
-	ld.param.u32 	%r7, [subsetAlongX_param_5];
-	ld.param.u32 	%r8, [subsetAlongX_param_6];
-	ld.param.u32 	%r9, [subsetAlongX_param_7];
+	ld.param.u64 	%rd1, [nearDW_param_0];
+	ld.param.u64 	%rd2, [nearDW_param_1];
+	ld.param.u64 	%rd3, [nearDW_param_2];
+	ld.param.u32 	%r5, [nearDW_param_3];
+	ld.param.u32 	%r6, [nearDW_param_4];
+	ld.param.u32 	%r7, [nearDW_param_5];
+	ld.param.u32 	%r8, [nearDW_param_6];
+	mov.u32 	%r9, %ctaid.x;
 	mov.u32 	%r10, %ntid.x;
-	mov.u32 	%r11, %ctaid.x;
-	mov.u32 	%r12, %tid.x;
-	mad.lo.s32 	%r1, %r10, %r11, %r12;
-	mov.u32 	%r13, %ntid.y;
-	mov.u32 	%r14, %ctaid.y;
-	mov.u32 	%r15, %tid.y;
-	mad.lo.s32 	%r2, %r13, %r14, %r15;
-	mov.u32 	%r16, %ntid.z;
-	mov.u32 	%r17, %ctaid.z;
-	mov.u32 	%r18, %tid.z;
-	mad.lo.s32 	%r3, %r16, %r17, %r18;
-	setp.ge.s32	%p1, %r2, %r8;
-	setp.ge.s32	%p2, %r1, %r7;
+	mov.u32 	%r11, %tid.x;
+	mad.lo.s32 	%r1, %r10, %r9, %r11;
+	mov.u32 	%r12, %ntid.y;
+	mov.u32 	%r13, %ctaid.y;
+	mov.u32 	%r14, %tid.y;
+	mad.lo.s32 	%r2, %r12, %r13, %r14;
+	mov.u32 	%r15, %ntid.z;
+	mov.u32 	%r16, %ctaid.z;
+	mov.u32 	%r17, %tid.z;
+	mad.lo.s32 	%r3, %r15, %r16, %r17;
+	shl.b32 	%r18, %r5, 1;
+	add.s32 	%r4, %r18, 1;
+	setp.ge.s32	%p1, %r2, %r7;
+	setp.ge.s32	%p2, %r1, %r4;
 	or.pred  	%p3, %p1, %p2;
-	setp.ge.s32	%p4, %r3, %r9;
+	setp.ge.s32	%p4, %r3, %r8;
 	or.pred  	%p5, %p3, %p4;
-	@%p5 bra 	BB0_4;
+	@%p5 bra 	BB0_2;
 
-	cvta.to.global.u64 	%rd6, %rd4;
-	mad.lo.s32 	%r4, %r3, %r8, %r2;
-	cvt.s64.s32	%rd1, %r4;
-	mul.wide.s32 	%rd7, %r4, 4;
-	add.s64 	%rd8, %rd6, %rd7;
-	ld.global.nc.f32 	%f1, [%rd8];
-	cvt.f64.f32	%fd1, %f1;
+	cvta.to.global.u64 	%rd4, %rd3;
+	mad.lo.s32 	%r19, %r3, %r7, %r2;
+	mul.wide.s32 	%rd5, %r19, 4;
+	add.s64 	%rd6, %rd4, %rd5;
+	cvt.rn.f32.s32	%f1, %r1;
+	ld.global.nc.f32 	%f2, [%rd6];
+	add.f32 	%f3, %f1, %f2;
+	cvt.rn.f32.s32	%f4, %r5;
+	sub.f32 	%f5, %f3, %f4;
+	cvt.f64.f32	%fd1, %f5;
 	add.f64 	%fd2, %fd1, 0d3FE0000000000000;
-	cvt.rzi.s32.f64	%r5, %fd2;
-	setp.lt.s32	%p6, %r1, %r5;
-	@%p6 bra 	BB0_4;
+	cvt.rzi.s32.f64	%r20, %fd2;
+	mad.lo.s32 	%r21, %r19, %r6, %r20;
+	cvta.to.global.u64 	%rd7, %rd2;
+	mul.wide.s32 	%rd8, %r21, 4;
+	add.s64 	%rd9, %rd7, %rd8;
+	ld.global.nc.f32 	%f6, [%rd9];
+	mad.lo.s32 	%r22, %r19, %r4, %r1;
+	cvta.to.global.u64 	%rd10, %rd1;
+	mul.wide.s32 	%rd11, %r22, 4;
+	add.s64 	%rd12, %rd10, %rd11;
+	st.global.f32 	[%rd12], %f6;
 
-	cvta.to.global.u64 	%rd9, %rd5;
-	cvt.rn.f64.s32	%fd3, %r1;
-	add.s64 	%rd11, %rd9, %rd7;
-	ld.global.nc.f32 	%f2, [%rd11];
-	cvt.rzi.s32.f32	%r19, %f2;
-	cvt.rn.f64.s32	%fd4, %r19;
-	add.f64 	%fd5, %fd4, 0d3FE0000000000000;
-	setp.gt.f64	%p7, %fd3, %fd5;
-	@%p7 bra 	BB0_4;
-
-	cvta.to.global.u64 	%rd12, %rd2;
-	cvta.to.global.u64 	%rd13, %rd3;
-	cvt.u32.u64	%r20, %rd1;
-	mad.lo.s32 	%r21, %r4, %r7, %r1;
-	mul.wide.s32 	%rd14, %r21, 4;
-	add.s64 	%rd15, %rd13, %rd14;
-	ld.global.nc.f32 	%f3, [%rd15];
-	mad.lo.s32 	%r22, %r20, %r6, %r1;
-	sub.s32 	%r23, %r22, %r5;
-	mul.wide.s32 	%rd16, %r23, 4;
-	add.s64 	%rd17, %rd12, %rd16;
-	st.global.f32 	[%rd17], %f3;
-
-BB0_4:
+BB0_2:
 	ret;
 }
 

@@ -1,6 +1,8 @@
 #include "stencil.h"
 #include "subdivangle.h"
-#define PI 3.14159265358979323846264338327950288419716939937510
+
+// Don't use this, something the preprocessor is doing makes it different than what I have currently.
+// #define PI 3.14159265358979323846264338327950288419716939937510582097494459
 
 extern "C" __global__ void subDivAngle(float* __restrict__ s, float* __restrict__ a, float* __restrict__ b,
                                        int shift, float dt, int Nx, int Ny, int Nz) {
@@ -21,11 +23,11 @@ extern "C" __global__ void subDivAngle(float* __restrict__ s, float* __restrict_
 }
 
 extern "C" __device__ float deltaAngle(float dA) {
-    if (dA < -1*PI) {
-        return 2*PI + dA;
-    } else if (dA > PI) {
-        return 2*PI - dA;
-    } else {
-        return dA;
+    float pi = 3.14159265358979323846264338327950288419716939937510582097494459;
+    if (dA < -1*pi) {
+        return 2*pi + dA;
+    } else if (dA > pi) {
+        return 2*pi - dA;
     }
+    return dA;
 }

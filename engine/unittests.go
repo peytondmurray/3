@@ -1,10 +1,9 @@
 package engine
 
 import (
-	"math"
 	"fmt"
+	"math"
 )
-
 
 // Convert a slice  of shape [3]int{1, n[Y], n[Z]} to a [][]float32, eliminating the extra dimension
 func to2D(a [][][]float32) [][]float32 {
@@ -45,8 +44,35 @@ func isSliceClose(a [][][]float32, b [][][]float32) bool {
 	return true
 }
 
-// DEBUG -------------
-
 func isClose(a, b, rtol, atol float64) bool {
-	return math.Abs(a-b) <= atol + rtol*math.Abs(b)
+	return math.Abs(a-b) <= atol+rtol*math.Abs(b)
+}
+
+func diffMap(a, b [][][]float32, name string) {
+	ret := ZeroWorldScalar64()
+	for i := range ret {
+		for j := range ret[i] {
+			for k := range ret[i][j] {
+				if isClose(float64(a[i][j][k]), float64(b[i][j][k]), 1e-4, 1e-8) {
+					ret[i][j][k] = 1
+				}
+			}
+		}
+	}
+	saveVTK(ret, name)
+}
+
+func getNearDWCPU(a [][][]float32, dwpos [][]int, mw int) [][][]float32 {
+	n := MeshSize()
+	ret := make([][][]float32, len(a))
+	for i := 0; i < n[Z]; i++ {
+		ret[i] = make([][]float32, len(a[i]))
+		for j := 0; j < n[Y]; j++ {
+			ret[i][j] = make([]float32, 2*mw+1)
+			for k := dwpos[i][j] - mw; k < dwpos[i][j]+mw+1; k++ {
+				ret[i][j][k-(dwpos[i][j]-mw)] = float32(k) //a[i][j][k]
+			}
+		}
+	}
+	return ret
 }

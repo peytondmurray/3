@@ -111,9 +111,8 @@ const(
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -166,15 +165,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.f32 	%f6, [%rd12];
 	ld.global.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -183,16 +180,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;
@@ -219,9 +215,8 @@ BB0_8:
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -274,15 +269,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.nc.f32 	%f6, [%rd12];
 	ld.global.nc.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -291,16 +284,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;
@@ -327,9 +319,8 @@ BB0_8:
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -382,15 +373,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.nc.f32 	%f6, [%rd12];
 	ld.global.nc.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -399,16 +388,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;
@@ -435,9 +423,8 @@ BB0_8:
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -490,15 +477,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.nc.f32 	%f6, [%rd12];
 	ld.global.nc.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -507,16 +492,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;
@@ -543,9 +527,8 @@ BB0_8:
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -598,15 +581,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.nc.f32 	%f6, [%rd12];
 	ld.global.nc.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -615,16 +596,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;
@@ -651,9 +631,8 @@ BB0_8:
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -706,15 +685,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.nc.f32 	%f6, [%rd12];
 	ld.global.nc.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -723,16 +700,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;
@@ -759,9 +735,8 @@ BB0_8:
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -814,15 +789,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.nc.f32 	%f6, [%rd12];
 	ld.global.nc.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -831,16 +804,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;
@@ -867,9 +839,8 @@ BB0_8:
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -922,15 +893,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.nc.f32 	%f6, [%rd12];
 	ld.global.nc.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -939,16 +908,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;
@@ -975,9 +943,8 @@ BB0_8:
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -1030,15 +997,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.nc.f32 	%f6, [%rd12];
 	ld.global.nc.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -1047,16 +1012,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;
@@ -1083,9 +1047,8 @@ BB0_8:
 )
 {
 	.reg .pred 	%p<11>;
-	.reg .f32 	%f<10>;
+	.reg .f32 	%f<11>;
 	.reg .b32 	%r<23>;
-	.reg .f64 	%fd<5>;
 	.reg .b64 	%rd<13>;
 
 
@@ -1138,15 +1101,13 @@ BB0_3:
 	add.s64 	%rd12, %rd7, %rd11;
 	ld.global.nc.f32 	%f6, [%rd12];
 	ld.global.nc.f32 	%f7, [%rd10];
-	sub.f32 	%f9, %f7, %f6;
-	cvt.f64.f32	%fd1, %f9;
-	setp.lt.f64	%p9, %fd1, 0dC00921FB54442D18;
+	sub.f32 	%f10, %f7, %f6;
+	setp.lt.f32	%p9, %f10, 0fC0490FDB;
 	@%p9 bra 	BB0_6;
 	bra.uni 	BB0_4;
 
 BB0_6:
-	add.f64 	%fd4, %fd1, 0d401921FB54442D18;
-	cvt.rn.f32.f64	%f9, %fd4;
+	add.f32 	%f10, %f10, 0f40C90FDB;
 	bra.uni 	BB0_7;
 
 BB0_2:
@@ -1155,16 +1116,15 @@ BB0_2:
 	bra.uni 	BB0_8;
 
 BB0_4:
-	setp.leu.f64	%p10, %fd1, 0d400921FB54442D18;
+	setp.leu.f32	%p10, %f10, 0f40490FDB;
 	@%p10 bra 	BB0_7;
 
-	mov.f64 	%fd2, 0d401921FB54442D18;
-	sub.f64 	%fd3, %fd2, %fd1;
-	cvt.rn.f32.f64	%f9, %fd3;
+	mov.f32 	%f8, 0f40C90FDB;
+	sub.f32 	%f10, %f8, %f10;
 
 BB0_7:
-	div.rn.f32 	%f8, %f9, %f5;
-	st.global.f32 	[%rd1], %f8;
+	div.rn.f32 	%f9, %f10, %f5;
+	st.global.f32 	[%rd1], %f9;
 
 BB0_8:
 	ret;

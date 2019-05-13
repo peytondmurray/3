@@ -20,5 +20,5 @@ func SubDivAngle(s, a, b *data.Slice, shift int, dt float64) {
 	util.Argument(a.Size() == N && b.Size() == N)
 	cfg := make3DConf(N)
 	k_subDivAngle_async(s.DevPtr(X), a.DevPtr(X), b.DevPtr(X),
-						shift, float32(dt), N[X], N[Y], N[Z], cfg)
+		shift, float32(dt), N[X], N[Y], N[Z], cfg)
 }

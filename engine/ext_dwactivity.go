@@ -4,7 +4,7 @@ import (
 	"github.com/mumax/3/data"
 	// "github.com/mumax/3/mag"
 	// "log"
-	// "fmt"
+	"fmt"
 	"github.com/mumax/3/cuda"
 	"math"
 )
@@ -16,7 +16,7 @@ var (
 	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
 	ExactDWPosZC  = NewScalarValue("ext_exactdwposzc", "m", "Position of the domain wall from start", getExactPosZC)
 	DWMonitor     activityStack // Most recent positions of DW speed
-	MaskWidth = 10
+	MaskWidth     = 10
 )
 
 func init() {
@@ -63,9 +63,9 @@ type activityStack struct {
 	initialized bool
 
 	// Pointers to rxy, phi, theta, and the angular velocities
-	rptGPU *data.Slice
-	pdGPU  *data.Slice
-	tdGPU  *data.Slice
+	rptGPU   *data.Slice
+	pdGPU    *data.Slice
+	tdGPU    *data.Slice
 	dwposGPU *data.Slice
 }
 
@@ -192,44 +192,52 @@ func (s *activityStack) push() {
 	// _dwpos := GetNearestIntDWPos(_rpt[2], _intPosZC) //Not sure this makes any difference at all
 	_dwpos := _intPosZC
 
-
 	// Allocate GPU memory to hold intermediate quantities
 	_dwposGPU := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
 	_rxyAvgGPU := cuda.Buffer(1, n)
 	_pdGPU := cuda.Buffer(1, n)
 	_tdGPU := cuda.Buffer(1, n)
 	_rptGPU := cuda.Buffer(3, n)
-	defer cuda.Recycle(_rxyAvgGPU)									// Better to keep allocated?
+	defer cuda.Recycle(_rxyAvgGPU) // Better to keep allocated?
 
 	ext_rxyphitheta.EvalTo(_rptGPU)
-	cuda.SetDomainWallIndices(_dwposGPU, M.Buffer())			// checked - good
+	cuda.SetDomainWallIndices(_dwposGPU, M.Buffer()) // checked - good
 
 	// Average the rxy from last step and this step
-	cuda.AvgSlices(_rxyAvgGPU, _rptGPU.Comp(0), s.rptGPU.Comp(0))	// checked - good
-	cuda.SubDivAngle(_pdGPU, _rptGPU.Comp(1), s.rptGPU.Comp(1), _windowpos - s.windowpos, float64(float32(_t - s.t))) // ang. vel. phi
-	cuda.SubDivAngle(_tdGPU, _rptGPU.Comp(2), s.rptGPU.Comp(2), _windowpos - s.windowpos, float64(float32(_t - s.t))) // ang. vel. theta
+	cuda.AvgSlices(_rxyAvgGPU, _rptGPU.Comp(0), s.rptGPU.Comp(0))                               // checked - good
+	cuda.SubDivAngle(_pdGPU, _rptGPU.Comp(1), s.rptGPU.Comp(1), _windowpos-s.windowpos, _t-s.t) // ang. vel. phi
+	cuda.SubDivAngle(_tdGPU, _rptGPU.Comp(2), s.rptGPU.Comp(2), _windowpos-s.windowpos, _t-s.t) // ang. vel. theta
 
-	// _Axy := cuda.Axy(_pdGPU, _rxyAvgGPU, s.dwposGPU, MaskWidth)
-	// _Az := cuda.Az(_tdGPU, s.dwposGPU, MaskWidth)
-
-
-
+	_Axy := cuda.Axy(_pdGPU, _rxyAvgGPU, s.dwposGPU, MaskWidth)
+	_Az := cuda.Az(_tdGPU, s.dwposGPU, MaskWidth)
 
 	_rxyAvg := averageRxy(_rpt[0], s.rxy)
-	// _phidot := angularVel(_rpt[1], s.phi, _windowpos - s.windowpos, _t - s.t)
-	_phidot := angularVel(_rptGPU.Comp(1).HostCopy().Scalars(), s.rptGPU.Comp(1).HostCopy().Scalars(), _windowpos - s.windowpos, float32(_t - s.t))
-	_thetadot := angularVel(_rpt[2], s.theta, _windowpos - s.windowpos, float32(_t - s.t))
+	_phidot := angularVel(_rpt[1], s.phi, _windowpos-s.windowpos, float32(_t-s.t))
+	_thetadot := angularVel(_rpt[2], s.theta, _windowpos-s.windowpos, float32(_t-s.t))
+
+	// _tmp := cuda.Buffer(1, n)
+	// cuda.Mul(_tmp, _pdGPU, _rxyAvgGPU)
+	// _tmp := cuda.GetNearDW(_rptGPU.Comp(2), s.dwposGPU, MaskWidth).HostCopy().Scalars()
+	// _tmpCPU := getNearDWCPU(_rpt[2], s.dwpos, MaskWidth)
+
+	// print(len(_tmp), len(_tmpCPU))
 
 	// Calculate Axy and Az by summing the angular velocity of the cells which were near the domain wall at the
 	// last step (i.e., within maskWidth cells of the old dwpos).
 	s.Axy = calcAxy(_phidot, _rxyAvg, s.dwpos, s.maskWidth)
 	s.Az = calcAz(_thetadot, s.dwpos, s.maskWidth)
 
-	_tmp := _pdGPU.HostCopy().Scalars()
-	print(isSliceClose(_tmp, _phidot))
+	// print(isClose(float64(_Axy), float64(s.Axy), 1e-4, 1e-8), isClose(float64(_Az), float64(s.Az), 1e-4, 1e-8))
+	print(fmt.Sprintf("Axy: %8.8E %8.8E Az: %8.8E %8.8E\n", _Axy, s.Axy, _Az, s.Az))
+
+	// _tmp := _pdGPU.HostCopy().Scalars()
+	// print(isSliceClose(_tmp, _phidot))
 	// print(isEqual(to2D(_dwposGPU.HostCopy().Scalars()), _dwpos))
 
-
+	// saveVTK(toFloat64(M.Comp(2).HostCopy().Scalars()), "mData")
+	// diffMap(_pdGPU.HostCopy().Scalars(), _phidot, "phidot")
+	// diffMap(_rpt[1], _rptGPU.Comp(1).HostCopy().Scalars(), "phi")
+	// diffMap(_tdGPU.HostCopy().Scalars(), _thetadot, "thetadot")
 
 	s.windowpos = _windowpos
 	s.dwpos = _dwpos
@@ -240,7 +248,6 @@ func (s *activityStack) push() {
 	s.lastStep = NSteps
 	s.phidot = _phidot
 	s.thetadot = _thetadot
-
 
 	s.dwposGPU.Free()
 	s.rptGPU.Free()
@@ -261,14 +268,27 @@ func (s *activityStack) push() {
 	return
 }
 
+func toFloat64(a [][][]float32) [][][]float64 {
+	ret := ZeroWorldScalar64()
+	for i := range ret {
+		for j := range ret[i] {
+			for k := range ret[i][j] {
+				ret[i][j][k] = float64(a[i][j][k])
+			}
+		}
+	}
+	return ret
+}
+
 // Calculate the change in angle for two angles, taking into account the fact that 2*pi = 0. If the difference in angles
 // (a-b) is large, the vector is assumed to have wrapped around this boundary.
 func deltaAngle(a, b float32) float32 {
+	pi := float32(3.14159265358979323846264338327950288419716939937510582097494459)
 	dA := a - b
-	if dA < -math.Pi {
-		return 2*math.Pi + dA
-	} else if dA > math.Pi {
-		return 2*math.Pi - dA
+	if dA < -pi {
+		return 2*pi + dA
+	} else if dA > pi {
+		return 2*pi - dA
 	}
 	return dA
 }

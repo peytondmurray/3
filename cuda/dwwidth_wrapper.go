@@ -12,11 +12,11 @@ import(
 	"sync"
 )
 
-// CUDA handle for avgDWWidth kernel
-var avgDWWidth_code cu.Function
+// CUDA handle for DWWidth kernel
+var DWWidth_code cu.Function
 
-// Stores the arguments for avgDWWidth kernel invocation
-type avgDWWidth_args_t struct{
+// Stores the arguments for DWWidth kernel invocation
+type DWWidth_args_t struct{
 	 arg_s unsafe.Pointer
 	 arg_mz unsafe.Pointer
 	 arg_halfWidth int
@@ -27,79 +27,79 @@ type avgDWWidth_args_t struct{
 	sync.Mutex
 }
 
-// Stores the arguments for avgDWWidth kernel invocation
-var avgDWWidth_args avgDWWidth_args_t
+// Stores the arguments for DWWidth kernel invocation
+var DWWidth_args DWWidth_args_t
 
 func init(){
 	// CUDA driver kernel call wants pointers to arguments, set them up once.
-	 avgDWWidth_args.argptr[0] = unsafe.Pointer(&avgDWWidth_args.arg_s)
-	 avgDWWidth_args.argptr[1] = unsafe.Pointer(&avgDWWidth_args.arg_mz)
-	 avgDWWidth_args.argptr[2] = unsafe.Pointer(&avgDWWidth_args.arg_halfWidth)
-	 avgDWWidth_args.argptr[3] = unsafe.Pointer(&avgDWWidth_args.arg_Nx)
-	 avgDWWidth_args.argptr[4] = unsafe.Pointer(&avgDWWidth_args.arg_Ny)
-	 avgDWWidth_args.argptr[5] = unsafe.Pointer(&avgDWWidth_args.arg_Nz)
+	 DWWidth_args.argptr[0] = unsafe.Pointer(&DWWidth_args.arg_s)
+	 DWWidth_args.argptr[1] = unsafe.Pointer(&DWWidth_args.arg_mz)
+	 DWWidth_args.argptr[2] = unsafe.Pointer(&DWWidth_args.arg_halfWidth)
+	 DWWidth_args.argptr[3] = unsafe.Pointer(&DWWidth_args.arg_Nx)
+	 DWWidth_args.argptr[4] = unsafe.Pointer(&DWWidth_args.arg_Ny)
+	 DWWidth_args.argptr[5] = unsafe.Pointer(&DWWidth_args.arg_Nz)
 	 }
 
-// Wrapper for avgDWWidth CUDA kernel, asynchronous.
-func k_avgDWWidth_async ( s unsafe.Pointer, mz unsafe.Pointer, halfWidth int, Nx int, Ny int, Nz int,  cfg *config) {
+// Wrapper for DWWidth CUDA kernel, asynchronous.
+func k_DWWidth_async ( s unsafe.Pointer, mz unsafe.Pointer, halfWidth int, Nx int, Ny int, Nz int,  cfg *config) {
 	if Synchronous{ // debug
 		Sync()
-		timer.Start("avgDWWidth")
+		timer.Start("DWWidth")
 	}
 
-	avgDWWidth_args.Lock()
-	defer avgDWWidth_args.Unlock()
+	DWWidth_args.Lock()
+	defer DWWidth_args.Unlock()
 
-	if avgDWWidth_code == 0{
-		avgDWWidth_code = fatbinLoad(avgDWWidth_map, "avgDWWidth")
+	if DWWidth_code == 0{
+		DWWidth_code = fatbinLoad(DWWidth_map, "DWWidth")
 	}
 
-	 avgDWWidth_args.arg_s = s
-	 avgDWWidth_args.arg_mz = mz
-	 avgDWWidth_args.arg_halfWidth = halfWidth
-	 avgDWWidth_args.arg_Nx = Nx
-	 avgDWWidth_args.arg_Ny = Ny
-	 avgDWWidth_args.arg_Nz = Nz
+	 DWWidth_args.arg_s = s
+	 DWWidth_args.arg_mz = mz
+	 DWWidth_args.arg_halfWidth = halfWidth
+	 DWWidth_args.arg_Nx = Nx
+	 DWWidth_args.arg_Ny = Ny
+	 DWWidth_args.arg_Nz = Nz
 	
 
-	args := avgDWWidth_args.argptr[:]
-	cu.LaunchKernel(avgDWWidth_code, cfg.Grid.X, cfg.Grid.Y, cfg.Grid.Z, cfg.Block.X, cfg.Block.Y, cfg.Block.Z, 0, stream0, args)
+	args := DWWidth_args.argptr[:]
+	cu.LaunchKernel(DWWidth_code, cfg.Grid.X, cfg.Grid.Y, cfg.Grid.Z, cfg.Block.X, cfg.Block.Y, cfg.Block.Z, 0, stream0, args)
 
 	if Synchronous{ // debug
 		Sync()
-		timer.Stop("avgDWWidth")
+		timer.Stop("DWWidth")
 	}
 }
 
-// maps compute capability on PTX code for avgDWWidth kernel.
-var avgDWWidth_map = map[int]string{ 0: "" ,
-30: avgDWWidth_ptx_30 ,
-35: avgDWWidth_ptx_35 ,
-37: avgDWWidth_ptx_37 ,
-50: avgDWWidth_ptx_50 ,
-52: avgDWWidth_ptx_52 ,
-53: avgDWWidth_ptx_53 ,
-60: avgDWWidth_ptx_60 ,
-61: avgDWWidth_ptx_61 ,
-70: avgDWWidth_ptx_70 ,
-75: avgDWWidth_ptx_75  }
+// maps compute capability on PTX code for DWWidth kernel.
+var DWWidth_map = map[int]string{ 0: "" ,
+30: DWWidth_ptx_30 ,
+35: DWWidth_ptx_35 ,
+37: DWWidth_ptx_37 ,
+50: DWWidth_ptx_50 ,
+52: DWWidth_ptx_52 ,
+53: DWWidth_ptx_53 ,
+60: DWWidth_ptx_60 ,
+61: DWWidth_ptx_61 ,
+70: DWWidth_ptx_70 ,
+75: DWWidth_ptx_75  }
 
-// avgDWWidth PTX code for various compute capabilities.
+// DWWidth PTX code for various compute capabilities.
 const(
-  avgDWWidth_ptx_30 = `
+  DWWidth_ptx_30 = `
 .version 6.4
 .target sm_30
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -108,11 +108,11 @@ const(
 	.reg .b64 	%rd<39>;
 
 
-	ld.param.u64 	%rd10, [avgDWWidth_param_1];
-	ld.param.u32 	%r43, [avgDWWidth_param_2];
-	ld.param.u32 	%r44, [avgDWWidth_param_3];
-	ld.param.u32 	%r45, [avgDWWidth_param_4];
-	ld.param.u32 	%r46, [avgDWWidth_param_5];
+	ld.param.u64 	%rd10, [DWWidth_param_1];
+	ld.param.u32 	%r43, [DWWidth_param_2];
+	ld.param.u32 	%r44, [DWWidth_param_3];
+	ld.param.u32 	%r45, [DWWidth_param_4];
+	ld.param.u32 	%r46, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd10;
 	mov.u32 	%r47, %ntid.x;
 	mov.u32 	%r48, %ctaid.x;
@@ -394,7 +394,7 @@ BB0_19:
 	mov.u32 	%r316, %ctaid.y;
 	mov.u32 	%r315, %ntid.y;
 	mad.lo.s32 	%r314, %r315, %r316, %r317;
-	ld.param.u32 	%r313, [avgDWWidth_param_4];
+	ld.param.u32 	%r313, [DWWidth_param_4];
 	add.s32 	%r324, %r322, 1;
 	add.s32 	%r325, %r323, 1;
 	mad.lo.s32 	%r128, %r313, %r2, %r314;
@@ -651,7 +651,7 @@ BB0_37:
 
 BB0_38:
 	mov.f32 	%f739, 0f00000000;
-	ld.param.u32 	%r318, [avgDWWidth_param_2];
+	ld.param.u32 	%r318, [DWWidth_param_2];
 	sub.s32 	%r326, %r321, %r318;
 	setp.ge.s32	%p47, %r326, %r61;
 	@%p47 bra 	BB0_72;
@@ -661,7 +661,7 @@ BB0_38:
 	mov.f32 	%f727, 0f00000000;
 	@%p48 bra 	BB0_49;
 
-	ld.param.u32 	%r319, [avgDWWidth_param_2];
+	ld.param.u32 	%r319, [DWWidth_param_2];
 	sub.s32 	%r188, %r321, %r319;
 	mad.lo.s32 	%r189, %r57, %r44, %r188;
 	mul.wide.s32 	%rd23, %r189, 4;
@@ -881,7 +881,7 @@ BB0_53:
 	mov.u32 	%r311, %ctaid.y;
 	mov.u32 	%r310, %ntid.y;
 	mad.lo.s32 	%r309, %r310, %r311, %r312;
-	ld.param.u32 	%r308, [avgDWWidth_param_4];
+	ld.param.u32 	%r308, [DWWidth_param_4];
 	mov.u32 	%r307, %tid.z;
 	mov.u32 	%r306, %ctaid.z;
 	mov.u32 	%r305, %ntid.z;
@@ -1132,7 +1132,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd36, [avgDWWidth_param_0];
+	ld.param.u64 	%rd36, [DWWidth_param_0];
 	cvt.rn.f32.s32	%f691, %r8;
 	add.f32 	%f692, %f691, 0fBF800000;
 	mul.f32 	%f693, %f691, %f692;
@@ -1158,20 +1158,20 @@ BB0_73:
 
 
 `
-   avgDWWidth_ptx_35 = `
+   DWWidth_ptx_35 = `
 .version 6.4
 .target sm_35
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -1180,11 +1180,11 @@ BB0_73:
 	.reg .b64 	%rd<27>;
 
 
-	ld.param.u64 	%rd11, [avgDWWidth_param_1];
-	ld.param.u32 	%r48, [avgDWWidth_param_2];
-	ld.param.u32 	%r232, [avgDWWidth_param_3];
-	ld.param.u32 	%r50, [avgDWWidth_param_4];
-	ld.param.u32 	%r51, [avgDWWidth_param_5];
+	ld.param.u64 	%rd11, [DWWidth_param_1];
+	ld.param.u32 	%r48, [DWWidth_param_2];
+	ld.param.u32 	%r232, [DWWidth_param_3];
+	ld.param.u32 	%r50, [DWWidth_param_4];
+	ld.param.u32 	%r51, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd11;
 	mov.u32 	%r52, %ntid.x;
 	mov.u32 	%r53, %ctaid.x;
@@ -1458,8 +1458,8 @@ BB0_19:
 	setp.lt.u32	%p25, %r16, 4;
 	@%p25 bra 	BB0_38;
 
-	ld.param.u32 	%r219, [avgDWWidth_param_3];
-	ld.param.u32 	%r218, [avgDWWidth_param_4];
+	ld.param.u32 	%r219, [DWWidth_param_3];
+	ld.param.u32 	%r218, [DWWidth_param_4];
 	add.s32 	%r236, %r234, 1;
 	add.s32 	%r237, %r235, 1;
 	mad.lo.s32 	%r97, %r218, %r8, %r4;
@@ -1934,8 +1934,8 @@ BB0_53:
 	setp.lt.u32	%p64, %r16, 4;
 	@%p64 bra 	BB0_72;
 
-	ld.param.u32 	%r231, [avgDWWidth_param_3];
-	ld.param.u32 	%r230, [avgDWWidth_param_4];
+	ld.param.u32 	%r231, [DWWidth_param_3];
+	ld.param.u32 	%r230, [DWWidth_param_4];
 	add.s32 	%r239, %r238, 1;
 	mad.lo.s32 	%r175, %r230, %r8, %r4;
 	mad.lo.s32 	%r176, %r231, %r175, %r238;
@@ -2182,7 +2182,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd24, [avgDWWidth_param_0];
+	ld.param.u64 	%rd24, [DWWidth_param_0];
 	cvta.to.global.u64 	%rd23, %rd24;
 	mov.u32 	%r229, %tid.z;
 	mov.u32 	%r228, %ctaid.z;
@@ -2191,7 +2191,7 @@ BB0_72:
 	mov.u32 	%r225, %ctaid.y;
 	mov.u32 	%r224, %ntid.y;
 	mad.lo.s32 	%r223, %r224, %r225, %r226;
-	ld.param.u32 	%r222, [avgDWWidth_param_4];
+	ld.param.u32 	%r222, [DWWidth_param_4];
 	mad.lo.s32 	%r221, %r227, %r228, %r229;
 	mad.lo.s32 	%r220, %r221, %r222, %r223;
 	cvt.rn.f32.s32	%f691, %r16;
@@ -2218,20 +2218,20 @@ BB0_73:
 
 
 `
-   avgDWWidth_ptx_37 = `
+   DWWidth_ptx_37 = `
 .version 6.4
 .target sm_37
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -2240,11 +2240,11 @@ BB0_73:
 	.reg .b64 	%rd<27>;
 
 
-	ld.param.u64 	%rd11, [avgDWWidth_param_1];
-	ld.param.u32 	%r48, [avgDWWidth_param_2];
-	ld.param.u32 	%r232, [avgDWWidth_param_3];
-	ld.param.u32 	%r50, [avgDWWidth_param_4];
-	ld.param.u32 	%r51, [avgDWWidth_param_5];
+	ld.param.u64 	%rd11, [DWWidth_param_1];
+	ld.param.u32 	%r48, [DWWidth_param_2];
+	ld.param.u32 	%r232, [DWWidth_param_3];
+	ld.param.u32 	%r50, [DWWidth_param_4];
+	ld.param.u32 	%r51, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd11;
 	mov.u32 	%r52, %ntid.x;
 	mov.u32 	%r53, %ctaid.x;
@@ -2518,8 +2518,8 @@ BB0_19:
 	setp.lt.u32	%p25, %r16, 4;
 	@%p25 bra 	BB0_38;
 
-	ld.param.u32 	%r219, [avgDWWidth_param_3];
-	ld.param.u32 	%r218, [avgDWWidth_param_4];
+	ld.param.u32 	%r219, [DWWidth_param_3];
+	ld.param.u32 	%r218, [DWWidth_param_4];
 	add.s32 	%r236, %r234, 1;
 	add.s32 	%r237, %r235, 1;
 	mad.lo.s32 	%r97, %r218, %r8, %r4;
@@ -2994,8 +2994,8 @@ BB0_53:
 	setp.lt.u32	%p64, %r16, 4;
 	@%p64 bra 	BB0_72;
 
-	ld.param.u32 	%r231, [avgDWWidth_param_3];
-	ld.param.u32 	%r230, [avgDWWidth_param_4];
+	ld.param.u32 	%r231, [DWWidth_param_3];
+	ld.param.u32 	%r230, [DWWidth_param_4];
 	add.s32 	%r239, %r238, 1;
 	mad.lo.s32 	%r175, %r230, %r8, %r4;
 	mad.lo.s32 	%r176, %r231, %r175, %r238;
@@ -3242,7 +3242,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd24, [avgDWWidth_param_0];
+	ld.param.u64 	%rd24, [DWWidth_param_0];
 	cvta.to.global.u64 	%rd23, %rd24;
 	mov.u32 	%r229, %tid.z;
 	mov.u32 	%r228, %ctaid.z;
@@ -3251,7 +3251,7 @@ BB0_72:
 	mov.u32 	%r225, %ctaid.y;
 	mov.u32 	%r224, %ntid.y;
 	mad.lo.s32 	%r223, %r224, %r225, %r226;
-	ld.param.u32 	%r222, [avgDWWidth_param_4];
+	ld.param.u32 	%r222, [DWWidth_param_4];
 	mad.lo.s32 	%r221, %r227, %r228, %r229;
 	mad.lo.s32 	%r220, %r221, %r222, %r223;
 	cvt.rn.f32.s32	%f691, %r16;
@@ -3278,20 +3278,20 @@ BB0_73:
 
 
 `
-   avgDWWidth_ptx_50 = `
+   DWWidth_ptx_50 = `
 .version 6.4
 .target sm_50
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -3300,11 +3300,11 @@ BB0_73:
 	.reg .b64 	%rd<27>;
 
 
-	ld.param.u64 	%rd11, [avgDWWidth_param_1];
-	ld.param.u32 	%r48, [avgDWWidth_param_2];
-	ld.param.u32 	%r232, [avgDWWidth_param_3];
-	ld.param.u32 	%r50, [avgDWWidth_param_4];
-	ld.param.u32 	%r51, [avgDWWidth_param_5];
+	ld.param.u64 	%rd11, [DWWidth_param_1];
+	ld.param.u32 	%r48, [DWWidth_param_2];
+	ld.param.u32 	%r232, [DWWidth_param_3];
+	ld.param.u32 	%r50, [DWWidth_param_4];
+	ld.param.u32 	%r51, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd11;
 	mov.u32 	%r52, %ntid.x;
 	mov.u32 	%r53, %ctaid.x;
@@ -3578,8 +3578,8 @@ BB0_19:
 	setp.lt.u32	%p25, %r16, 4;
 	@%p25 bra 	BB0_38;
 
-	ld.param.u32 	%r219, [avgDWWidth_param_3];
-	ld.param.u32 	%r218, [avgDWWidth_param_4];
+	ld.param.u32 	%r219, [DWWidth_param_3];
+	ld.param.u32 	%r218, [DWWidth_param_4];
 	add.s32 	%r236, %r234, 1;
 	add.s32 	%r237, %r235, 1;
 	mad.lo.s32 	%r97, %r218, %r8, %r4;
@@ -4054,8 +4054,8 @@ BB0_53:
 	setp.lt.u32	%p64, %r16, 4;
 	@%p64 bra 	BB0_72;
 
-	ld.param.u32 	%r231, [avgDWWidth_param_3];
-	ld.param.u32 	%r230, [avgDWWidth_param_4];
+	ld.param.u32 	%r231, [DWWidth_param_3];
+	ld.param.u32 	%r230, [DWWidth_param_4];
 	add.s32 	%r239, %r238, 1;
 	mad.lo.s32 	%r175, %r230, %r8, %r4;
 	mad.lo.s32 	%r176, %r231, %r175, %r238;
@@ -4302,7 +4302,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd24, [avgDWWidth_param_0];
+	ld.param.u64 	%rd24, [DWWidth_param_0];
 	cvta.to.global.u64 	%rd23, %rd24;
 	mov.u32 	%r229, %tid.z;
 	mov.u32 	%r228, %ctaid.z;
@@ -4311,7 +4311,7 @@ BB0_72:
 	mov.u32 	%r225, %ctaid.y;
 	mov.u32 	%r224, %ntid.y;
 	mad.lo.s32 	%r223, %r224, %r225, %r226;
-	ld.param.u32 	%r222, [avgDWWidth_param_4];
+	ld.param.u32 	%r222, [DWWidth_param_4];
 	mad.lo.s32 	%r221, %r227, %r228, %r229;
 	mad.lo.s32 	%r220, %r221, %r222, %r223;
 	cvt.rn.f32.s32	%f691, %r16;
@@ -4338,20 +4338,20 @@ BB0_73:
 
 
 `
-   avgDWWidth_ptx_52 = `
+   DWWidth_ptx_52 = `
 .version 6.4
 .target sm_52
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -4360,11 +4360,11 @@ BB0_73:
 	.reg .b64 	%rd<27>;
 
 
-	ld.param.u64 	%rd11, [avgDWWidth_param_1];
-	ld.param.u32 	%r48, [avgDWWidth_param_2];
-	ld.param.u32 	%r232, [avgDWWidth_param_3];
-	ld.param.u32 	%r50, [avgDWWidth_param_4];
-	ld.param.u32 	%r51, [avgDWWidth_param_5];
+	ld.param.u64 	%rd11, [DWWidth_param_1];
+	ld.param.u32 	%r48, [DWWidth_param_2];
+	ld.param.u32 	%r232, [DWWidth_param_3];
+	ld.param.u32 	%r50, [DWWidth_param_4];
+	ld.param.u32 	%r51, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd11;
 	mov.u32 	%r52, %ntid.x;
 	mov.u32 	%r53, %ctaid.x;
@@ -4638,8 +4638,8 @@ BB0_19:
 	setp.lt.u32	%p25, %r16, 4;
 	@%p25 bra 	BB0_38;
 
-	ld.param.u32 	%r219, [avgDWWidth_param_3];
-	ld.param.u32 	%r218, [avgDWWidth_param_4];
+	ld.param.u32 	%r219, [DWWidth_param_3];
+	ld.param.u32 	%r218, [DWWidth_param_4];
 	add.s32 	%r236, %r234, 1;
 	add.s32 	%r237, %r235, 1;
 	mad.lo.s32 	%r97, %r218, %r8, %r4;
@@ -5114,8 +5114,8 @@ BB0_53:
 	setp.lt.u32	%p64, %r16, 4;
 	@%p64 bra 	BB0_72;
 
-	ld.param.u32 	%r231, [avgDWWidth_param_3];
-	ld.param.u32 	%r230, [avgDWWidth_param_4];
+	ld.param.u32 	%r231, [DWWidth_param_3];
+	ld.param.u32 	%r230, [DWWidth_param_4];
 	add.s32 	%r239, %r238, 1;
 	mad.lo.s32 	%r175, %r230, %r8, %r4;
 	mad.lo.s32 	%r176, %r231, %r175, %r238;
@@ -5362,7 +5362,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd24, [avgDWWidth_param_0];
+	ld.param.u64 	%rd24, [DWWidth_param_0];
 	cvta.to.global.u64 	%rd23, %rd24;
 	mov.u32 	%r229, %tid.z;
 	mov.u32 	%r228, %ctaid.z;
@@ -5371,7 +5371,7 @@ BB0_72:
 	mov.u32 	%r225, %ctaid.y;
 	mov.u32 	%r224, %ntid.y;
 	mad.lo.s32 	%r223, %r224, %r225, %r226;
-	ld.param.u32 	%r222, [avgDWWidth_param_4];
+	ld.param.u32 	%r222, [DWWidth_param_4];
 	mad.lo.s32 	%r221, %r227, %r228, %r229;
 	mad.lo.s32 	%r220, %r221, %r222, %r223;
 	cvt.rn.f32.s32	%f691, %r16;
@@ -5398,20 +5398,20 @@ BB0_73:
 
 
 `
-   avgDWWidth_ptx_53 = `
+   DWWidth_ptx_53 = `
 .version 6.4
 .target sm_53
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -5420,11 +5420,11 @@ BB0_73:
 	.reg .b64 	%rd<27>;
 
 
-	ld.param.u64 	%rd11, [avgDWWidth_param_1];
-	ld.param.u32 	%r48, [avgDWWidth_param_2];
-	ld.param.u32 	%r232, [avgDWWidth_param_3];
-	ld.param.u32 	%r50, [avgDWWidth_param_4];
-	ld.param.u32 	%r51, [avgDWWidth_param_5];
+	ld.param.u64 	%rd11, [DWWidth_param_1];
+	ld.param.u32 	%r48, [DWWidth_param_2];
+	ld.param.u32 	%r232, [DWWidth_param_3];
+	ld.param.u32 	%r50, [DWWidth_param_4];
+	ld.param.u32 	%r51, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd11;
 	mov.u32 	%r52, %ntid.x;
 	mov.u32 	%r53, %ctaid.x;
@@ -5698,8 +5698,8 @@ BB0_19:
 	setp.lt.u32	%p25, %r16, 4;
 	@%p25 bra 	BB0_38;
 
-	ld.param.u32 	%r219, [avgDWWidth_param_3];
-	ld.param.u32 	%r218, [avgDWWidth_param_4];
+	ld.param.u32 	%r219, [DWWidth_param_3];
+	ld.param.u32 	%r218, [DWWidth_param_4];
 	add.s32 	%r236, %r234, 1;
 	add.s32 	%r237, %r235, 1;
 	mad.lo.s32 	%r97, %r218, %r8, %r4;
@@ -6174,8 +6174,8 @@ BB0_53:
 	setp.lt.u32	%p64, %r16, 4;
 	@%p64 bra 	BB0_72;
 
-	ld.param.u32 	%r231, [avgDWWidth_param_3];
-	ld.param.u32 	%r230, [avgDWWidth_param_4];
+	ld.param.u32 	%r231, [DWWidth_param_3];
+	ld.param.u32 	%r230, [DWWidth_param_4];
 	add.s32 	%r239, %r238, 1;
 	mad.lo.s32 	%r175, %r230, %r8, %r4;
 	mad.lo.s32 	%r176, %r231, %r175, %r238;
@@ -6422,7 +6422,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd24, [avgDWWidth_param_0];
+	ld.param.u64 	%rd24, [DWWidth_param_0];
 	cvta.to.global.u64 	%rd23, %rd24;
 	mov.u32 	%r229, %tid.z;
 	mov.u32 	%r228, %ctaid.z;
@@ -6431,7 +6431,7 @@ BB0_72:
 	mov.u32 	%r225, %ctaid.y;
 	mov.u32 	%r224, %ntid.y;
 	mad.lo.s32 	%r223, %r224, %r225, %r226;
-	ld.param.u32 	%r222, [avgDWWidth_param_4];
+	ld.param.u32 	%r222, [DWWidth_param_4];
 	mad.lo.s32 	%r221, %r227, %r228, %r229;
 	mad.lo.s32 	%r220, %r221, %r222, %r223;
 	cvt.rn.f32.s32	%f691, %r16;
@@ -6458,20 +6458,20 @@ BB0_73:
 
 
 `
-   avgDWWidth_ptx_60 = `
+   DWWidth_ptx_60 = `
 .version 6.4
 .target sm_60
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -6480,11 +6480,11 @@ BB0_73:
 	.reg .b64 	%rd<27>;
 
 
-	ld.param.u64 	%rd11, [avgDWWidth_param_1];
-	ld.param.u32 	%r48, [avgDWWidth_param_2];
-	ld.param.u32 	%r232, [avgDWWidth_param_3];
-	ld.param.u32 	%r50, [avgDWWidth_param_4];
-	ld.param.u32 	%r51, [avgDWWidth_param_5];
+	ld.param.u64 	%rd11, [DWWidth_param_1];
+	ld.param.u32 	%r48, [DWWidth_param_2];
+	ld.param.u32 	%r232, [DWWidth_param_3];
+	ld.param.u32 	%r50, [DWWidth_param_4];
+	ld.param.u32 	%r51, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd11;
 	mov.u32 	%r52, %ntid.x;
 	mov.u32 	%r53, %ctaid.x;
@@ -6758,8 +6758,8 @@ BB0_19:
 	setp.lt.u32	%p25, %r16, 4;
 	@%p25 bra 	BB0_38;
 
-	ld.param.u32 	%r219, [avgDWWidth_param_3];
-	ld.param.u32 	%r218, [avgDWWidth_param_4];
+	ld.param.u32 	%r219, [DWWidth_param_3];
+	ld.param.u32 	%r218, [DWWidth_param_4];
 	add.s32 	%r236, %r234, 1;
 	add.s32 	%r237, %r235, 1;
 	mad.lo.s32 	%r97, %r218, %r8, %r4;
@@ -7234,8 +7234,8 @@ BB0_53:
 	setp.lt.u32	%p64, %r16, 4;
 	@%p64 bra 	BB0_72;
 
-	ld.param.u32 	%r231, [avgDWWidth_param_3];
-	ld.param.u32 	%r230, [avgDWWidth_param_4];
+	ld.param.u32 	%r231, [DWWidth_param_3];
+	ld.param.u32 	%r230, [DWWidth_param_4];
 	add.s32 	%r239, %r238, 1;
 	mad.lo.s32 	%r175, %r230, %r8, %r4;
 	mad.lo.s32 	%r176, %r231, %r175, %r238;
@@ -7482,7 +7482,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd24, [avgDWWidth_param_0];
+	ld.param.u64 	%rd24, [DWWidth_param_0];
 	cvta.to.global.u64 	%rd23, %rd24;
 	mov.u32 	%r229, %tid.z;
 	mov.u32 	%r228, %ctaid.z;
@@ -7491,7 +7491,7 @@ BB0_72:
 	mov.u32 	%r225, %ctaid.y;
 	mov.u32 	%r224, %ntid.y;
 	mad.lo.s32 	%r223, %r224, %r225, %r226;
-	ld.param.u32 	%r222, [avgDWWidth_param_4];
+	ld.param.u32 	%r222, [DWWidth_param_4];
 	mad.lo.s32 	%r221, %r227, %r228, %r229;
 	mad.lo.s32 	%r220, %r221, %r222, %r223;
 	cvt.rn.f32.s32	%f691, %r16;
@@ -7518,20 +7518,20 @@ BB0_73:
 
 
 `
-   avgDWWidth_ptx_61 = `
+   DWWidth_ptx_61 = `
 .version 6.4
 .target sm_61
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -7540,11 +7540,11 @@ BB0_73:
 	.reg .b64 	%rd<27>;
 
 
-	ld.param.u64 	%rd11, [avgDWWidth_param_1];
-	ld.param.u32 	%r48, [avgDWWidth_param_2];
-	ld.param.u32 	%r232, [avgDWWidth_param_3];
-	ld.param.u32 	%r50, [avgDWWidth_param_4];
-	ld.param.u32 	%r51, [avgDWWidth_param_5];
+	ld.param.u64 	%rd11, [DWWidth_param_1];
+	ld.param.u32 	%r48, [DWWidth_param_2];
+	ld.param.u32 	%r232, [DWWidth_param_3];
+	ld.param.u32 	%r50, [DWWidth_param_4];
+	ld.param.u32 	%r51, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd11;
 	mov.u32 	%r52, %ntid.x;
 	mov.u32 	%r53, %ctaid.x;
@@ -7818,8 +7818,8 @@ BB0_19:
 	setp.lt.u32	%p25, %r16, 4;
 	@%p25 bra 	BB0_38;
 
-	ld.param.u32 	%r219, [avgDWWidth_param_3];
-	ld.param.u32 	%r218, [avgDWWidth_param_4];
+	ld.param.u32 	%r219, [DWWidth_param_3];
+	ld.param.u32 	%r218, [DWWidth_param_4];
 	add.s32 	%r236, %r234, 1;
 	add.s32 	%r237, %r235, 1;
 	mad.lo.s32 	%r97, %r218, %r8, %r4;
@@ -8294,8 +8294,8 @@ BB0_53:
 	setp.lt.u32	%p64, %r16, 4;
 	@%p64 bra 	BB0_72;
 
-	ld.param.u32 	%r231, [avgDWWidth_param_3];
-	ld.param.u32 	%r230, [avgDWWidth_param_4];
+	ld.param.u32 	%r231, [DWWidth_param_3];
+	ld.param.u32 	%r230, [DWWidth_param_4];
 	add.s32 	%r239, %r238, 1;
 	mad.lo.s32 	%r175, %r230, %r8, %r4;
 	mad.lo.s32 	%r176, %r231, %r175, %r238;
@@ -8542,7 +8542,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd24, [avgDWWidth_param_0];
+	ld.param.u64 	%rd24, [DWWidth_param_0];
 	cvta.to.global.u64 	%rd23, %rd24;
 	mov.u32 	%r229, %tid.z;
 	mov.u32 	%r228, %ctaid.z;
@@ -8551,7 +8551,7 @@ BB0_72:
 	mov.u32 	%r225, %ctaid.y;
 	mov.u32 	%r224, %ntid.y;
 	mad.lo.s32 	%r223, %r224, %r225, %r226;
-	ld.param.u32 	%r222, [avgDWWidth_param_4];
+	ld.param.u32 	%r222, [DWWidth_param_4];
 	mad.lo.s32 	%r221, %r227, %r228, %r229;
 	mad.lo.s32 	%r220, %r221, %r222, %r223;
 	cvt.rn.f32.s32	%f691, %r16;
@@ -8578,20 +8578,20 @@ BB0_73:
 
 
 `
-   avgDWWidth_ptx_70 = `
+   DWWidth_ptx_70 = `
 .version 6.4
 .target sm_70
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -8600,11 +8600,11 @@ BB0_73:
 	.reg .b64 	%rd<27>;
 
 
-	ld.param.u64 	%rd11, [avgDWWidth_param_1];
-	ld.param.u32 	%r48, [avgDWWidth_param_2];
-	ld.param.u32 	%r232, [avgDWWidth_param_3];
-	ld.param.u32 	%r50, [avgDWWidth_param_4];
-	ld.param.u32 	%r51, [avgDWWidth_param_5];
+	ld.param.u64 	%rd11, [DWWidth_param_1];
+	ld.param.u32 	%r48, [DWWidth_param_2];
+	ld.param.u32 	%r232, [DWWidth_param_3];
+	ld.param.u32 	%r50, [DWWidth_param_4];
+	ld.param.u32 	%r51, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd11;
 	mov.u32 	%r52, %ntid.x;
 	mov.u32 	%r53, %ctaid.x;
@@ -8878,8 +8878,8 @@ BB0_19:
 	setp.lt.u32	%p25, %r16, 4;
 	@%p25 bra 	BB0_38;
 
-	ld.param.u32 	%r219, [avgDWWidth_param_3];
-	ld.param.u32 	%r218, [avgDWWidth_param_4];
+	ld.param.u32 	%r219, [DWWidth_param_3];
+	ld.param.u32 	%r218, [DWWidth_param_4];
 	add.s32 	%r236, %r234, 1;
 	add.s32 	%r237, %r235, 1;
 	mad.lo.s32 	%r97, %r218, %r8, %r4;
@@ -9354,8 +9354,8 @@ BB0_53:
 	setp.lt.u32	%p64, %r16, 4;
 	@%p64 bra 	BB0_72;
 
-	ld.param.u32 	%r231, [avgDWWidth_param_3];
-	ld.param.u32 	%r230, [avgDWWidth_param_4];
+	ld.param.u32 	%r231, [DWWidth_param_3];
+	ld.param.u32 	%r230, [DWWidth_param_4];
 	add.s32 	%r239, %r238, 1;
 	mad.lo.s32 	%r175, %r230, %r8, %r4;
 	mad.lo.s32 	%r176, %r231, %r175, %r238;
@@ -9602,7 +9602,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd24, [avgDWWidth_param_0];
+	ld.param.u64 	%rd24, [DWWidth_param_0];
 	cvta.to.global.u64 	%rd23, %rd24;
 	mov.u32 	%r229, %tid.z;
 	mov.u32 	%r228, %ctaid.z;
@@ -9611,7 +9611,7 @@ BB0_72:
 	mov.u32 	%r225, %ctaid.y;
 	mov.u32 	%r224, %ntid.y;
 	mad.lo.s32 	%r223, %r224, %r225, %r226;
-	ld.param.u32 	%r222, [avgDWWidth_param_4];
+	ld.param.u32 	%r222, [DWWidth_param_4];
 	mad.lo.s32 	%r221, %r227, %r228, %r229;
 	mad.lo.s32 	%r220, %r221, %r222, %r223;
 	cvt.rn.f32.s32	%f691, %r16;
@@ -9638,20 +9638,20 @@ BB0_73:
 
 
 `
-   avgDWWidth_ptx_75 = `
+   DWWidth_ptx_75 = `
 .version 6.4
 .target sm_75
 .address_size 64
 
-	// .globl	avgDWWidth
+	// .globl	DWWidth
 
-.visible .entry avgDWWidth(
-	.param .u64 avgDWWidth_param_0,
-	.param .u64 avgDWWidth_param_1,
-	.param .u32 avgDWWidth_param_2,
-	.param .u32 avgDWWidth_param_3,
-	.param .u32 avgDWWidth_param_4,
-	.param .u32 avgDWWidth_param_5
+.visible .entry DWWidth(
+	.param .u64 DWWidth_param_0,
+	.param .u64 DWWidth_param_1,
+	.param .u32 DWWidth_param_2,
+	.param .u32 DWWidth_param_3,
+	.param .u32 DWWidth_param_4,
+	.param .u32 DWWidth_param_5
 )
 {
 	.reg .pred 	%p<86>;
@@ -9660,11 +9660,11 @@ BB0_73:
 	.reg .b64 	%rd<27>;
 
 
-	ld.param.u64 	%rd11, [avgDWWidth_param_1];
-	ld.param.u32 	%r48, [avgDWWidth_param_2];
-	ld.param.u32 	%r232, [avgDWWidth_param_3];
-	ld.param.u32 	%r50, [avgDWWidth_param_4];
-	ld.param.u32 	%r51, [avgDWWidth_param_5];
+	ld.param.u64 	%rd11, [DWWidth_param_1];
+	ld.param.u32 	%r48, [DWWidth_param_2];
+	ld.param.u32 	%r232, [DWWidth_param_3];
+	ld.param.u32 	%r50, [DWWidth_param_4];
+	ld.param.u32 	%r51, [DWWidth_param_5];
 	cvta.to.global.u64 	%rd1, %rd11;
 	mov.u32 	%r52, %ntid.x;
 	mov.u32 	%r53, %ctaid.x;
@@ -9938,8 +9938,8 @@ BB0_19:
 	setp.lt.u32	%p25, %r16, 4;
 	@%p25 bra 	BB0_38;
 
-	ld.param.u32 	%r219, [avgDWWidth_param_3];
-	ld.param.u32 	%r218, [avgDWWidth_param_4];
+	ld.param.u32 	%r219, [DWWidth_param_3];
+	ld.param.u32 	%r218, [DWWidth_param_4];
 	add.s32 	%r236, %r234, 1;
 	add.s32 	%r237, %r235, 1;
 	mad.lo.s32 	%r97, %r218, %r8, %r4;
@@ -10414,8 +10414,8 @@ BB0_53:
 	setp.lt.u32	%p64, %r16, 4;
 	@%p64 bra 	BB0_72;
 
-	ld.param.u32 	%r231, [avgDWWidth_param_3];
-	ld.param.u32 	%r230, [avgDWWidth_param_4];
+	ld.param.u32 	%r231, [DWWidth_param_3];
+	ld.param.u32 	%r230, [DWWidth_param_4];
 	add.s32 	%r239, %r238, 1;
 	mad.lo.s32 	%r175, %r230, %r8, %r4;
 	mad.lo.s32 	%r176, %r231, %r175, %r238;
@@ -10662,7 +10662,7 @@ BB0_71:
 	@%p85 bra 	BB0_55;
 
 BB0_72:
-	ld.param.u64 	%rd24, [avgDWWidth_param_0];
+	ld.param.u64 	%rd24, [DWWidth_param_0];
 	cvta.to.global.u64 	%rd23, %rd24;
 	mov.u32 	%r229, %tid.z;
 	mov.u32 	%r228, %ctaid.z;
@@ -10671,7 +10671,7 @@ BB0_72:
 	mov.u32 	%r225, %ctaid.y;
 	mov.u32 	%r224, %ntid.y;
 	mad.lo.s32 	%r223, %r224, %r225, %r226;
-	ld.param.u32 	%r222, [avgDWWidth_param_4];
+	ld.param.u32 	%r222, [DWWidth_param_4];
 	mad.lo.s32 	%r221, %r227, %r228, %r229;
 	mad.lo.s32 	%r220, %r221, %r222, %r223;
 	cvt.rn.f32.s32	%f691, %r16;

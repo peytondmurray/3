@@ -10,7 +10,7 @@ var (
 )
 
 func init() {
-	DeclVar("ext_dwwhalfwidth", &DWHalfWidth, "Number of cells on either side of the domain wall to fit to find the width")
+	DeclVar("dwwhalfwidth", &DWHalfWidth, "Number of cells on either side of the domain wall to fit to find the width")
 }
 
 func setDWWidth() float64 {

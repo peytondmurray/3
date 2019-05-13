@@ -4,10 +4,10 @@ import (
 	"github.com/mumax/3/data"
 	// "github.com/mumax/3/mag"
 	// "log"
-	"fmt"
+	// "fmt"
 	"github.com/mumax/3/cuda"
 	"math"
-	"time"
+	// "time"
 )
 
 var (
@@ -18,6 +18,7 @@ var (
 	ExactDWPosZC  = NewScalarValue("ext_exactdwposzc", "m", "Position of the domain wall from start", getExactPosZC)
 	DWMonitor     activityStack // Most recent positions of DW speed
 	MaskWidth     = 10
+	EdgeSpacing   = 100 // Number of cells to avoid along the left and right edges when calculating domain wall width
 )
 
 func init() {
@@ -28,6 +29,7 @@ func init() {
 	DeclFunc("ext_getthetadot", getThetaDot, "Get the current theta angle as a slice.")
 	DeclFunc("ext_debug_setdw", debugSetDWMonitor, "Set DW parameters")
 	DeclVar("activitymaskwidth", &MaskWidth, "Number of cells on either side of the domain wall to include in activity calculations")
+	DeclVar("edgespacing", &EdgeSpacing, "Number of cells to avoid on the left and right edges when calculating DW width")
 }
 
 // DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
@@ -178,7 +180,8 @@ func (s *activityStack) push() {
 
 	// DWVel_________________________
 	// _intPosZC := getIntDWPos(_rpt[2])
-	_posAvg := exactPosAvg()
+	// _posAvg := exactPosAvg()
+	_posAvg := exactPosAvgAvoidEdges(EdgeSpacing)
 	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
 	s.posAvg = _posAvg
 	// DWVel_________________________
@@ -463,13 +466,26 @@ func exactPosTrace() float64 {
 	return GetShiftPos() + (c[X] * float64(sum) / float64(len(wall)*len(wall[0])))
 }
 
-func exactPosAvg() float64 {
+func exactPosAvgAvoidEdges(edgeSpacing int) float64 {
 
-	ws := Mesh().WorldSize()
+	n := MeshSize()
+	// c := Mesh().CellSize()
+	_tmp := cuda.SubsetXRange(M.Buffer().Comp(Z), edgeSpacing, n[X]-edgeSpacing)
+	defer _tmp.Free()
+	return avgMzToDWPos(float64(cuda.Sum(_tmp)) / float64(n[Z]*n[Y]*(n[X]-2*edgeSpacing))) // + float64(edgeSpacing)*c[X]
+}
+
+func exactPosAvg() float64 {
 
 	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function. They don't return
 	// exactly the same values, however...?
-	avg := M.Comp(Z).Average()
+	return avgMzToDWPos(M.Comp(Z).Average())
+}
+
+// Given the average value of Mz, compute the absolute domain wall position.
+func avgMzToDWPos(avg float64) float64 {
+
+	ws := Mesh().WorldSize()
 
 	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
 	// 50% are flipped up, the DW is 50% from the left side of the simulation window

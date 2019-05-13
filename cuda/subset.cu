@@ -15,7 +15,3 @@ extern "C" __global__ void nearDW(float* __restrict__ s, float* __restrict__ a, 
 
     return;
 }
-
-extern "C" __device__ int idxSubset(int ix, int iy, int iz, int NxSubset, int Ny, int Nz) {
-    return ((iz*Ny) + iy)*NxSubset + ix;
-}

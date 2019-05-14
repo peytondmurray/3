@@ -1,6 +1,7 @@
 package engine
 
 import (
+	// "github.com/mumax/3/cuda"
 	"fmt"
 	"github.com/mumax/3/data"
 	"github.com/mumax/3/mag"
@@ -16,59 +17,71 @@ func init() {
 func RemoveLRSurfaceChargeNoRegion() {
 	SetBusy(true)
 	defer SetBusy(false)
-	// PostStep(compensateLRSurfaceChargesNoRegion)
+	PostStep(compensateLRSurfaceChargesNoRegion)
 }
 
-// func compensateLRSurfaceChargesNoRegion() {
-// 	h := data.NewSlice(3, MeshSize())
-// 	H := h.Vectors()
-// 	ws := Mesh().WorldSize()
-// 	c := Mesh().CellSize()
-// 	n := MeshSize()
-// 	// _Ms := Msat.MSlice().GetArr().HostCopy().Scalars()
-// 	_m := M.Buffer().HostCopy().Vectors()
-// 	B_ext.RemoveExtraTerms()
+func compensateLRSurfaceChargesNoRegion() {
+	h := data.NewSlice(3, MeshSize())
+	H := h.Vectors()
+	ws := Mesh().WorldSize()
+	c := Mesh().CellSize()
+	n := MeshSize()
+	// _Ms := Msat.MSlice().GetArr().HostCopy().Scalars()
+	// _m := M.Buffer().HostCopy().Vectors()
+	// _m := M.Buffer()
+	B_ext.RemoveExtraTerms()
 
-// 	prog, maxProg := 0, (n[Z]+1)*(n[Y]+1)
-// 	// surface loop (source)
-// 	for I := 0; I < n[Z]; I++ {
-// 		for J := 0; J < n[Y]; J++ {
-// 			prog++
-// 			util.Progress(prog, maxProg, "removing surface charges")
 
-// 			y := (float64(J) + 0.5) * c[Y]
-// 			z := (float64(I) + 0.5) * c[Z]
-// 			source1 := [3]float64{0, y, z}        // left surface source
-// 			source2 := [3]float64{ws[X], y, z} 	  // right surface source
+	// chargeL := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
 
-// 			q1 := -1*float64(_Ms[I][J][0])*mag.Mu0*surfaceChargeDensity(0, J, I, _m[X][I][J][0])
-// 			q2 := -1*float64(_Ms[I][J][0])*mag.Mu0*surfaceChargeDensity(n[X]-1, J, I, _m[X][I][J][n[X]-1])
 
-// 			// volume loop (destination)
-// 			for iz := range H[0] {
-// 				for iy := range H[0][iz] {
-// 					for ix := range H[0][iz][iy] {
 
-// 						dst := [3]float64{ // destination coordinate
-// 							(float64(ix) + 0.5) * c[X],
-// 							(float64(iy) + 0.5) * c[Y],
-// 							(float64(iz) + 0.5) * c[Z]}
 
-// 						h1 := hfield(q1, source1, dst)
-// 						h2 := hfield(q2, source2, dst)
 
-// 						// add this surface charges' field to grand total
-// 						for c := 0; c < 3; c++ {
-// 							H[c][iz][iy][ix] += float32(h1[c] + h2[c])
-// 						}
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-// 	B_ext.Add(h, nil)
-// 	return
-// }
+
+	prog, maxProg := 0, (n[Z]+1)*(n[Y]+1)
+	// surface loop (source)
+	for I := 0; I < n[Z]; I++ {
+		for J := 0; J < n[Y]; J++ {
+			prog++
+			util.Progress(prog, maxProg, "removing surface charges")
+
+			y := (float64(J) + 0.5) * c[Y]
+			z := (float64(I) + 0.5) * c[Z]
+			source1 := [3]float64{0, y, z}        // left surface source
+			source2 := [3]float64{ws[X], y, z} 	  // right surface source
+
+			q1 := 0.0
+			q2 := 0.0
+
+			// q1 := -1*float64(_Ms[I][J][0])*mag.Mu0*surfaceCharge(0, J, I, _m[X][I][J][0])
+			// q2 := -1*float64(_Ms[I][J][0])*mag.Mu0*surfaceCharge(n[X]-1, J, I, _m[X][I][J][n[X]-1])
+
+			// volume loop (destination)
+			for iz := range H[0] {
+				for iy := range H[0][iz] {
+					for ix := range H[0][iz][iy] {
+
+						dst := [3]float64{ // destination coordinate
+							(float64(ix) + 0.5) * c[X],
+							(float64(iy) + 0.5) * c[Y],
+							(float64(iz) + 0.5) * c[Z]}
+
+						h1 := hfield(q1, source1, dst)
+						h2 := hfield(q2, source2, dst)
+
+						// add this surface charges' field to grand total
+						for c := 0; c < 3; c++ {
+							H[c][iz][iy][ix] += float32(h1[c] + h2[c])
+						}
+					}
+				}
+			}
+		}
+	}
+	B_ext.Add(h, nil)
+	return
+}
 
 // The surface charge density should be given by
 //
@@ -76,14 +89,15 @@ func RemoveLRSurfaceChargeNoRegion() {
 //
 // Where n is normal to the surface. For now, just assume the simulation region is a rectangle,
 // and take the norm to point along +/- x.
-func surfaceChargeDensity(ix, iy, iz int, mx float32) float64 {
+func surfaceCharge(ix, iy, iz int, mx float32) float64 {
+	c := Mesh().CellSize()
 	norm := 0.0
 	if ix == 0 {
 		norm = -1.0
 	} else {
 		norm = +1.0
 	}
-	return float64(mx)*norm
+	return float64(mx)*norm*c[Y]*c[Z]
 }
 
 // For a nanowire magnetized in-plane, with mx = mxLeft on the left end and

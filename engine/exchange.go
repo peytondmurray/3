@@ -28,6 +28,23 @@ var (
 	DindCoupling = NewScalarField("DindCoupling", "arb.", "Average DMI coupling with neighbors", dindDecode)
 
 	OpenBC = false
+
+
+	// DMI tensor elements
+	dxx exchParam
+	dxy exchParam
+	dxz exchParam
+	dyy exchParam
+	dyz exchParam
+	dzz exchParam
+
+	Dxx = NewScalarParam("Dxx", "J/m2", "Dxx DMI tensor", &dxx)
+	Dxy = NewScalarParam("Dxy", "J/m2", "Dxy DMI tensor", &dxy)
+	Dxz = NewScalarParam("Dxz", "J/m2", "Dxz DMI tensor", &dxz)
+	Dyy = NewScalarParam("Dyy", "J/m2", "Dyy DMI tensor", &dyy)
+	Dyz = NewScalarParam("Dyz", "J/m2", "Dyz DMI tensor", &dyz)
+	Dzz = NewScalarParam("Dzz", "J/m2", "Dzz DMI tensor", &dzz)
+
 )
 
 var AddExchangeEnergyDensity = makeEdensAdder(&B_exch, -0.5) // TODO: normal func
@@ -42,15 +59,28 @@ func init() {
 	lex2.init(Aex)
 	din2.init(Dind)
 	dbulk2.init(Dbulk)
+
+
+	// Initialize full DMI tensor
+	dxx.init(Dxx)
+	dxy.init(Dxy)
+	dxz.init(Dxz)
+	dyy.init(Dyy)
+	dyz.init(Dyz)
+	dzz.init(Dzz)
+
 }
 
 // Adds the current exchange field to dst
 func AddExchangeField(dst *data.Slice) {
+	full := !Dxx.isZero() || !Dxy.isZero() || !Dxz.isZero() || !Dyy.isZero() || !Dyz.isZero() || !Dzz.isZero()
 	inter := !Dind.isZero()
 	bulk := !Dbulk.isZero()
 	ms := Msat.MSlice()
 	defer ms.Recycle()
 	switch {
+	case full:
+		cuda.AddDMITensor(dst, M.Buffer(), lex2.Gpu(), dxx.Gpu(), dxx.Gpu(), dxx.Gpu(), dxx.Gpu(), dxx.Gpu(), dxx.Gpu(), ms, regions.Gpu(), M.Mesh(), OpenBC) // full dmi tensor + exhcange
 	case !inter && !bulk:
 		cuda.AddExchange(dst, M.Buffer(), lex2.Gpu(), ms, regions.Gpu(), M.Mesh())
 	case inter && !bulk:

@@ -186,8 +186,6 @@ func (s *activityStack) push() {
 	_t := Time
 
 	// DWVel_________________________
-	// _intPosZC := getIntDWPos(_rpt[2])
-	// _posAvg := exactPosAvg()
 	_posAvg := exactPosAvgAvoidEdges(EdgeSpacing)
 	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
 	s.posAvg = _posAvg

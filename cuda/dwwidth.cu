@@ -1,5 +1,6 @@
 #include "stencil.h"
 #include "dwwidth.h"
+#include "subset.h"
 
 /*
 Calculate the domain wall width along each x-coordinate of the simulation region. Takes the zero-crossing

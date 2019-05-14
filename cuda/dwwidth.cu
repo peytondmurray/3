@@ -25,13 +25,18 @@ extern "C" __global__ void DWWidth(float* __restrict__ s, float* __restrict__ mz
     int iy = blockIdx.y * blockDim.y + threadIdx.y;
     int iz = blockIdx.z * blockDim.z + threadIdx.z;
 
-    if (_ix > 1 || iy >= Ny || iz >= Nz)
+    if (_ix >= 1 || iy >= Ny || iz >= Nz)
     {
         return;
     }
 
     // Find zero crossing along this row
     int ix = zcAlongX(mz, iy, iz, Nx, Ny, Nz);
+
+    // if (ix == -1) {
+    //     s[idx2D(iy, iz)] = 0;
+    //     return;
+    // }
 
     // Find the lower and upper bounds for the region near the zero crossing
     int iLo = ix-halfWidth;
@@ -45,7 +50,7 @@ extern "C" __global__ void DWWidth(float* __restrict__ s, float* __restrict__ mz
     float t3 = N*(N-1)*N*(2*N-1)/6.0;
     float t4 = sumXi*sumXi;
 
-    s[idx2D(iy, iz)] = (t3-t4)/(t1-t2); // This gives the inverse of the least squares fit slope to tanh(mz), i.e. the domain wall width (in units of the cell size).
+    s[idx2D(iy, iz)] = fabsf((t3-t4)/(t1-t2)); // This gives the inverse of the least squares fit slope to tanh(mz), i.e. the domain wall width (in units of the cell size).
 
     return;
 }

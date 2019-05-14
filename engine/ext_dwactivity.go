@@ -140,27 +140,32 @@ func (s *activityStack) lastTime() float64 {
 
 func (s *activityStack) init() {
 
-	_rpt := ext_rxyphitheta.HostCopy().Vectors()
+	// _rpt := ext_rxyphitheta.HostCopy().Vectors()
 
-	s.t = Time
-	s.lastStep = NSteps
-	s.windowpos = GetIntWindowPos()
+	// s.t = Time
+	// s.lastStep = NSteps
+	// s.windowpos = GetIntWindowPos()
 
-	_intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
-	s.posAvg = exactPosAvg()
-	s.velAvg = 0.0
-	s.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
+	// _intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
+	// s.posAvg = exactPosAvg()
+	// s.velAvg = 0.0
+	// s.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
 
-	s.rxy = _rpt[0]
-	s.phi = _rpt[1]
-	s.theta = _rpt[2]
+	// s.rxy = _rpt[0]
+	// s.phi = _rpt[1]
+	// s.theta = _rpt[2]
 
-	s.phidot = ZeroWorldScalar32()
-	s.thetadot = ZeroWorldScalar32()
-	s.initialized = true
+	// s.phidot = ZeroWorldScalar32()
+	// s.thetadot = ZeroWorldScalar32()
 
 	// Set aside buffers for holding r, phi, and theta, and phidot and thetadot
 	n := MeshSize()
+	s.t = Time
+	s.lastStep = NSteps
+	s.windowpos = GetIntWindowPos()
+	s.posAvg = exactPosAvgAvoidEdges(EdgeSpacing)
+	s.velAvg = 0.0
+
 	s.rptGPU = cuda.Buffer(3, MeshSize())
 	ext_rxyphitheta.EvalTo(s.rptGPU)
 	s.pdGPU = cuda.Buffer(1, MeshSize())
@@ -169,6 +174,8 @@ func (s *activityStack) init() {
 	cuda.Zero(s.tdGPU)
 	s.dwposGPU = cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
 	cuda.SetDomainWallIndices(s.dwposGPU, M.Buffer())
+
+	s.initialized = true
 
 	return
 }
@@ -469,23 +476,29 @@ func exactPosTrace() float64 {
 func exactPosAvgAvoidEdges(edgeSpacing int) float64 {
 
 	n := MeshSize()
-	// c := Mesh().CellSize()
+	c := Mesh().CellSize()
+
 	_tmp := cuda.SubsetXRange(M.Buffer().Comp(Z), edgeSpacing, n[X]-edgeSpacing)
 	defer _tmp.Free()
-	return avgMzToDWPos(float64(cuda.Sum(_tmp)) / float64(n[Z]*n[Y]*(n[X]-2*edgeSpacing))) // + float64(edgeSpacing)*c[X]
-}
 
-func exactPosAvg() float64 {
+	avg := float64(cuda.Sum(_tmp)) / float64(n[Z]*n[Y]*(n[X]-2*edgeSpacing))
 
-	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function. They don't return
-	// exactly the same values, however...?
-	return avgMzToDWPos(M.Comp(Z).Average())
+	pct := 1.0 - (1.0-avg)/2.0
+
+	posInMiddle := pct * float64(n[X]-2*edgeSpacing) * c[X]
+	lowerPosBound := float64(edgeSpacing) * c[X]
+
+	return posInMiddle + lowerPosBound + GetShiftPos()
 }
 
 // Given the average value of Mz, compute the absolute domain wall position.
-func avgMzToDWPos(avg float64) float64 {
+func exactPosAvg() float64 {
 
 	ws := Mesh().WorldSize()
+
+	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function. They don't return
+	// exactly the same values, however...?
+	avg := M.Comp(Z).Average()
 
 	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
 	// 50% are flipped up, the DW is 50% from the left side of the simulation window

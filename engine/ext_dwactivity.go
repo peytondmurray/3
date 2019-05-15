@@ -19,6 +19,7 @@ var (
 	DWMonitor     activityStack // Most recent positions of DW speed
 	MaskWidth     = 10
 	EdgeSpacing   = 100 // Number of cells to avoid along the left and right edges when calculating domain wall width
+	AvoidEdges    = false
 )
 
 func init() {
@@ -27,19 +28,12 @@ func init() {
 	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
 	DeclFunc("ext_getphidot", getPhiDot, "Get the current phi angle as a slice.")
 	DeclFunc("ext_getthetadot", getThetaDot, "Get the current theta angle as a slice.")
-	DeclFunc("ext_debug_setdw", debugSetDWMonitor, "Set DW parameters")
+	// DeclFunc("ext_debug_setdw", debugSetDWMonitor, "Set DW parameters")
 	DeclVar("activitymaskwidth", &MaskWidth, "Number of cells on either side of the domain wall to include in activity calculations")
-	DeclVar("edgespacing", &EdgeSpacing, "Number of cells to avoid on the left and right edges when calculating DW width")
-}
+	DeclVar("edgespacing", &EdgeSpacing, "Number of cells to avoid on the left and right edges when calculating DW velocity")
+	DeclVar("avoidedges", &AvoidEdges, "When true, DW position (used to calculate DW activity and velocity) will not include cells on the left and right edges of the simulation; the number of cells to avoid can be set by changing EdgeSpacing")
 
-// DWActivityInit(w) sets the mask width to apply to the domain wall; only values of the magnetization within w cells
-// of the domain wall are included in the domain wall activity
-func DWActivityInit(w int, l int, r int) {
-	DWMonitor.maskWidth = w
-	DWMonitor.signL = l
-	DWMonitor.signR = r
 	DWMonitor.initialized = false
-	return
 }
 
 type activityStack struct {
@@ -49,15 +43,7 @@ type activityStack struct {
 	velAvg float64
 
 	// DWActivity
-	signL       int
-	signR       int
 	windowpos   int
-	dwpos       [][]int
-	rxy         [][][]float32
-	phi         [][][]float32
-	theta       [][][]float32
-	phidot      [][][]float32
-	thetadot    [][][]float32
 	t           float64
 	lastStep    int
 	maskWidth   int
@@ -65,11 +51,23 @@ type activityStack struct {
 	Axy         float32
 	initialized bool
 
-	// Pointers to rxy, phi, theta, and the angular velocities
-	rptGPU   *data.Slice
-	pdGPU    *data.Slice
-	tdGPU    *data.Slice
-	dwposGPU *data.Slice
+	avoidEdges bool
+
+	// These were used when computations were done on CPU; not needed now
+	// dwpos       [][]int
+	// rxy         [][][]float32
+	// phi         [][][]float32
+	// theta       [][][]float32
+	// phidot      [][][]float32
+	// thetadot    [][][]float32
+
+
+
+	// Pointers to rxy, ϕ, θ, and the angular velocities ∂ϕ and ∂θ
+	rϕθ   *data.Slice
+	∂ϕ    *data.Slice
+	∂θ    *data.Slice
+	dwpos *data.Slice
 }
 
 func (s *activityStack) update() {
@@ -79,31 +77,6 @@ func (s *activityStack) update() {
 		s.push()
 	}
 	return
-}
-
-func debugSetDWMonitor(vel float64) {
-
-	_rpt := ext_rxyphitheta.HostCopy().Vectors()
-
-	DWMonitor.t = Time
-	DWMonitor.lastStep = NSteps
-	DWMonitor.windowpos = GetIntWindowPos()
-
-	_intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
-	DWMonitor.posAvg = exactPosAvg()
-	DWMonitor.velAvg = vel
-	DWMonitor.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
-
-	DWMonitor.rxy = _rpt[0]
-	DWMonitor.phi = _rpt[1]
-	DWMonitor.theta = _rpt[2]
-
-	DWMonitor.phidot = ZeroWorldScalar32()
-	DWMonitor.thetadot = ZeroWorldScalar32()
-	DWMonitor.initialized = true
-
-	return
-
 }
 
 func getExactPosZC() float64 {
@@ -140,40 +113,29 @@ func (s *activityStack) lastTime() float64 {
 
 func (s *activityStack) init() {
 
-	// _rpt := ext_rxyphitheta.HostCopy().Vectors()
+	checkEdgeCutoff
 
-	// s.t = Time
-	// s.lastStep = NSteps
-	// s.windowpos = GetIntWindowPos()
-
-	// _intPosZC := getIntDWPos(_rpt[2]) // Move up above GetNearestIntDWPos
-	// s.posAvg = exactPosAvg()
-	// s.velAvg = 0.0
-	// s.dwpos = GetNearestIntDWPos(_rpt[2], _intPosZC)
-
-	// s.rxy = _rpt[0]
-	// s.phi = _rpt[1]
-	// s.theta = _rpt[2]
-
-	// s.phidot = ZeroWorldScalar32()
-	// s.thetadot = ZeroWorldScalar32()
 
 	// Set aside buffers for holding r, phi, and theta, and phidot and thetadot
 	n := MeshSize()
 	s.t = Time
 	s.lastStep = NSteps
 	s.windowpos = GetIntWindowPos()
-	s.posAvg = exactPosAvgAvoidEdges(EdgeSpacing)
+	if AvoidEdges {
+		s.posAvg = exactPosAvgAvoidEdges(EdgeSpacing)
+	} else {
+		s.posAvg = exactPosAvg()
+	}
 	s.velAvg = 0.0
 
-	s.rptGPU = cuda.Buffer(3, MeshSize())
-	ext_rxyphitheta.EvalTo(s.rptGPU)
-	s.pdGPU = cuda.Buffer(1, MeshSize())
-	cuda.Zero(s.pdGPU)
-	s.tdGPU = cuda.Buffer(1, MeshSize())
-	cuda.Zero(s.tdGPU)
-	s.dwposGPU = cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
-	cuda.SetDomainWallIndices(s.dwposGPU, M.Buffer())
+	s.rϕθ = cuda.Buffer(3, MeshSize())
+	ext_rxyphitheta.EvalTo(s.rϕθ)
+	s.∂ϕ = cuda.Buffer(1, MeshSize())
+	cuda.Zero(s.∂ϕ)
+	s.∂θ = cuda.Buffer(1, MeshSize())
+	cuda.Zero(s.∂θ)
+	s.dwpos = cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
+	cuda.SetDomainWallIndices(s.dwpos, M.Buffer())
 
 	s.initialized = true
 
@@ -186,7 +148,11 @@ func (s *activityStack) push() {
 	_t := Time
 
 	// DWVel_________________________
-	_posAvg := exactPosAvgAvoidEdges(EdgeSpacing)
+	if AvoidEdges {
+		_posAvg = exactPosAvgAvoidEdges(EdgeSpacing)
+	} else {
+		_posAvg = exactPosAvg()
+	}
 	s.velAvg = (_posAvg - s.posAvg) / (_t - s.t)
 	s.posAvg = _posAvg
 	// DWVel_________________________
@@ -195,37 +161,37 @@ func (s *activityStack) push() {
 	_windowpos := GetIntWindowPos()
 
 	// Allocate GPU memory to hold intermediate quantities
-	_dwposGPU := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
+	_dwpos := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
 	_rxyAvgGPU := cuda.Buffer(1, n)
-	_pdGPU := cuda.Buffer(1, n)
-	_tdGPU := cuda.Buffer(1, n)
-	_rptGPU := cuda.Buffer(3, n)
+	_∂ϕ := cuda.Buffer(1, n)
+	_∂θ := cuda.Buffer(1, n)
+	_rϕθ := cuda.Buffer(3, n)
 	defer cuda.Recycle(_rxyAvgGPU) // Free it when we return from the function, we don't use it after calculating Axy
 
-	ext_rxyphitheta.EvalTo(_rptGPU)
-	cuda.SetDomainWallIndices(_dwposGPU, M.Buffer())
+	ext_rxyphitheta.EvalTo(_rϕθ)
+	cuda.SetDomainWallIndices(_dwpos, M.Buffer())
 
 	// Average the rxy from last step and this step
-	cuda.AvgSlices(_rxyAvgGPU, _rptGPU.Comp(0), s.rptGPU.Comp(0))
-	cuda.SubDivAngle(_pdGPU, _rptGPU.Comp(1), s.rptGPU.Comp(1), _windowpos-s.windowpos, _t-s.t) // ang. vel. phi
-	cuda.SubDivAngle(_tdGPU, _rptGPU.Comp(2), s.rptGPU.Comp(2), _windowpos-s.windowpos, _t-s.t) // ang. vel. theta
+	cuda.AvgSlices(_rxyAvgGPU, _rϕθ.Comp(0), s.rϕθ.Comp(0))
+	cuda.SubDivAngle(_∂ϕ, _rϕθ.Comp(1), s.rϕθ.Comp(1), _windowpos-s.windowpos, _t-s.t) // ang. vel. phi
+	cuda.SubDivAngle(_∂θ, _rϕθ.Comp(2), s.rϕθ.Comp(2), _windowpos-s.windowpos, _t-s.t) // ang. vel. theta
 
-	s.Axy = cuda.Axy(_pdGPU, _rxyAvgGPU, s.dwposGPU, MaskWidth)
-	s.Az = cuda.Az(_tdGPU, s.dwposGPU, MaskWidth)
+	s.Axy = cuda.Axy(_∂ϕ, _rxyAvgGPU, s.dwpos, MaskWidth)
+	s.Az = cuda.Az(_∂θ, s.dwpos, MaskWidth)
 
-	s.dwposGPU.Free()
-	s.rptGPU.Free()
-	s.pdGPU.Free()
-	s.tdGPU.Free()
+	s.dwpos.Free()
+	s.rϕθ.Free()
+	s.∂ϕ.Free()
+	s.∂θ.Free()
 
 	// To be done after the other stuff!
 	s.windowpos = _windowpos
-	s.dwposGPU = _dwposGPU
-	s.rptGPU = _rptGPU
+	s.dwpos = _dwpos
+	s.rϕθ = _rϕθ
 	s.t = _t
 	s.lastStep = NSteps
-	s.pdGPU = _pdGPU
-	s.tdGPU = _tdGPU
+	s.∂ϕ = _∂ϕ
+	s.∂θ = _∂θ
 
 	return
 }
@@ -312,27 +278,11 @@ func IntRound(x float32) int {
 	return int(x + 0.5)
 }
 
-func GetNearestIntDWPos(theta [][][]float32, dw [][]int) [][]int {
-
-	nearest := make([][]int, len(dw))
-	for i := range theta {
-		nearest[i] = make([]int, len(dw[i]))
-		for j := range theta[i] {
-			if sign64(math.Cos(float64(theta[i][j][dw[i][j]-1]))) == DWMonitor.signL && sign64(math.Cos(float64(theta[i][j][dw[i][j]]))) == DWMonitor.signR {
-				nearest[i][j] = dw[i][j] - 1
-			} else {
-				nearest[i][j] = dw[i][j]
-			}
-		}
-	}
-	return nearest
-}
-
 // Find the index of the 1D slice just before the zero crossing of the Mz component. Check from right to left;
 // since bubbles will only be forming to the left, and we will not be susceptible to them with this method.
 func zeroCrossing(theta []float32) int {
 	for ix := len(theta) - 1; ix > 1; ix-- {
-		if sign64(math.Cos(float64(theta[ix-1]))) == DWMonitor.signL && sign64(math.Cos(float64(theta[ix]))) == DWMonitor.signR {
+		if math.Cos(float64(theta[ix-1]))*math.Cos(float64(theta[ix])) < 0 {
 			return ix - 1
 		}
 	}

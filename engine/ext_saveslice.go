@@ -78,7 +78,7 @@ func saveDWConfig(name string) {
 
 	n := MeshSize()
 	c := Mesh().CellSize()
-	dwpos := DWMonitor.dwpos // Indices of DW in simulation window
+	dwpos := roundDWPosArray(DWMonitor.dwpos.HostCopy().Host()[0]) // Indices of DW in simulation window
 
 	m := M.Buffer().HostCopy().Vectors()
 	dw := make([][6]float64, n[Z]*n[Y]) // (x, y, z, mx, my, mz) along the domain wall
@@ -120,7 +120,7 @@ func saveComovingDWConfig(name string) {
 
 	n := MeshSize()
 	c := Mesh().CellSize()
-	dwpos := DWMonitor.dwpos
+	dwpos := roundDWPosArray(DWMonitor.dwpos.HostCopy().Host()[0]) // Indices of DW in simulation window
 
 	m := M.Buffer().HostCopy().Vectors()
 	dw := make([][6]float64, n[Z]*n[Y]) // (x, y, z, mx, my, mz) along the domain wall
@@ -209,4 +209,17 @@ func saveDWParametric(name string) {
 	f.Sync()
 	saveDWParametricIndex++
 
+}
+
+func roundDWPosArray(a []float32) [][]int {
+
+	n := MeshSize()
+	ret := make([][]int, len(a))
+	for iz := 0; iz < n[Z]; iz++ {
+		ret[iz] = make([]int, len(a))
+		for iy := 0; iy < n[Y]; iy++ {
+			ret[iz][iy] = int(a[iz*n[Y] + iy]+0.5)
+		}
+	}
+	return ret
 }

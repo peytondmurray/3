@@ -4,7 +4,7 @@ import (
 	"github.com/mumax/3/data"
 	// "github.com/mumax/3/mag"
 	// "log"
-	// "fmt"
+	"fmt"
 	"github.com/mumax/3/cuda"
 	"math"
 	// "time"
@@ -23,12 +23,6 @@ var (
 )
 
 func init() {
-	DeclFunc("ext_dwactivityinit", DWActivityInit, "ext_dwactivityinit(w, l, r) sets the mask width to w, the sign of M which is being inserted at the left l and right r sides of the simulation.")
-	DeclFunc("ext_getphi", getPhi, "Get the current phi angle as a slice.")
-	DeclFunc("ext_gettheta", getTheta, "Get the current theta angle as a slice.")
-	DeclFunc("ext_getphidot", getPhiDot, "Get the current phi angle as a slice.")
-	DeclFunc("ext_getthetadot", getThetaDot, "Get the current theta angle as a slice.")
-	// DeclFunc("ext_debug_setdw", debugSetDWMonitor, "Set DW parameters")
 	DeclVar("activitymaskwidth", &MaskWidth, "Number of cells on either side of the domain wall to include in activity calculations")
 	DeclVar("edgespacing", &EdgeSpacing, "Number of cells to avoid on the left and right edges when calculating DW velocity")
 	DeclVar("avoidedges", &AvoidEdges, "When true, DW position (used to calculate DW activity and velocity) will not include cells on the left and right edges of the simulation; the number of cells to avoid can be set by changing EdgeSpacing")
@@ -61,12 +55,10 @@ type activityStack struct {
 	// phidot      [][][]float32
 	// thetadot    [][][]float32
 
-
-
-	// Pointers to rxy, ϕ, θ, and the angular velocities ∂ϕ and ∂θ
+	// Pointers to rxy, ϕ, θ, and the angular velocities ϕDot and θDot
 	rϕθ   *data.Slice
-	∂ϕ    *data.Slice
-	∂θ    *data.Slice
+	ϕDot  *data.Slice
+	θDot  *data.Slice
 	dwpos *data.Slice
 }
 
@@ -111,10 +103,17 @@ func (s *activityStack) lastTime() float64 {
 	return s.t
 }
 
+func checkEdgeCutoff() {
+	if float64(EdgeSpacing) > 0.5*float64(MeshSize()[X]) {
+		print(fmt.Sprintf("WARNING: The amount of simulation being ignored for domain wall velocity/activity calculations is large compared to the size of the system! EdgeSpacing: %d, MeshSize[X]: %d", EdgeSpacing, MeshSize()[X]))
+		if float64(EdgeSpacing) > float64(MeshSize()[X]) {
+			panic("EdgeSpacing > MeshSize[X]")
+		}
+	}
+	return
+}
+
 func (s *activityStack) init() {
-
-	checkEdgeCutoff
-
 
 	// Set aside buffers for holding r, phi, and theta, and phidot and thetadot
 	n := MeshSize()
@@ -122,6 +121,7 @@ func (s *activityStack) init() {
 	s.lastStep = NSteps
 	s.windowpos = GetIntWindowPos()
 	if AvoidEdges {
+		checkEdgeCutoff()
 		s.posAvg = exactPosAvgAvoidEdges(EdgeSpacing)
 	} else {
 		s.posAvg = exactPosAvg()
@@ -130,10 +130,10 @@ func (s *activityStack) init() {
 
 	s.rϕθ = cuda.Buffer(3, MeshSize())
 	ext_rxyphitheta.EvalTo(s.rϕθ)
-	s.∂ϕ = cuda.Buffer(1, MeshSize())
-	cuda.Zero(s.∂ϕ)
-	s.∂θ = cuda.Buffer(1, MeshSize())
-	cuda.Zero(s.∂θ)
+	s.ϕDot = cuda.Buffer(1, MeshSize())
+	cuda.Zero(s.ϕDot)
+	s.θDot = cuda.Buffer(1, MeshSize())
+	cuda.Zero(s.θDot)
 	s.dwpos = cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
 	cuda.SetDomainWallIndices(s.dwpos, M.Buffer())
 
@@ -147,6 +147,7 @@ func (s *activityStack) push() {
 	n := MeshSize()
 	_t := Time
 
+	_posAvg := 0.0
 	// DWVel_________________________
 	if AvoidEdges {
 		_posAvg = exactPosAvgAvoidEdges(EdgeSpacing)
@@ -163,8 +164,8 @@ func (s *activityStack) push() {
 	// Allocate GPU memory to hold intermediate quantities
 	_dwpos := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
 	_rxyAvgGPU := cuda.Buffer(1, n)
-	_∂ϕ := cuda.Buffer(1, n)
-	_∂θ := cuda.Buffer(1, n)
+	_ϕDot := cuda.Buffer(1, n)
+	_θDot := cuda.Buffer(1, n)
 	_rϕθ := cuda.Buffer(3, n)
 	defer cuda.Recycle(_rxyAvgGPU) // Free it when we return from the function, we don't use it after calculating Axy
 
@@ -173,16 +174,16 @@ func (s *activityStack) push() {
 
 	// Average the rxy from last step and this step
 	cuda.AvgSlices(_rxyAvgGPU, _rϕθ.Comp(0), s.rϕθ.Comp(0))
-	cuda.SubDivAngle(_∂ϕ, _rϕθ.Comp(1), s.rϕθ.Comp(1), _windowpos-s.windowpos, _t-s.t) // ang. vel. phi
-	cuda.SubDivAngle(_∂θ, _rϕθ.Comp(2), s.rϕθ.Comp(2), _windowpos-s.windowpos, _t-s.t) // ang. vel. theta
+	cuda.SubDivAngle(_ϕDot, _rϕθ.Comp(1), s.rϕθ.Comp(1), _windowpos-s.windowpos, _t-s.t) // ang. vel. phi
+	cuda.SubDivAngle(_θDot, _rϕθ.Comp(2), s.rϕθ.Comp(2), _windowpos-s.windowpos, _t-s.t) // ang. vel. theta
 
-	s.Axy = cuda.Axy(_∂ϕ, _rxyAvgGPU, s.dwpos, MaskWidth)
-	s.Az = cuda.Az(_∂θ, s.dwpos, MaskWidth)
+	s.Axy = cuda.Axy(_ϕDot, _rxyAvgGPU, s.dwpos, MaskWidth)
+	s.Az = cuda.Az(_θDot, s.dwpos, MaskWidth)
 
 	s.dwpos.Free()
 	s.rϕθ.Free()
-	s.∂ϕ.Free()
-	s.∂θ.Free()
+	s.ϕDot.Free()
+	s.θDot.Free()
 
 	// To be done after the other stuff!
 	s.windowpos = _windowpos
@@ -190,88 +191,10 @@ func (s *activityStack) push() {
 	s.rϕθ = _rϕθ
 	s.t = _t
 	s.lastStep = NSteps
-	s.∂ϕ = _∂ϕ
-	s.∂θ = _∂θ
+	s.ϕDot = _ϕDot
+	s.θDot = _θDot
 
 	return
-}
-
-func toFloat64(a [][][]float32) [][][]float64 {
-	ret := ZeroWorldScalar64()
-	for i := range ret {
-		for j := range ret[i] {
-			for k := range ret[i][j] {
-				ret[i][j][k] = float64(a[i][j][k])
-			}
-		}
-	}
-	return ret
-}
-
-// Calculate the change in angle for two angles, taking into account the fact that 2*pi = 0. If the difference in angles
-// (a-b) is large, the vector is assumed to have wrapped around this boundary.
-func deltaAngle(a, b float32) float32 {
-	pi := float32(3.14159265358979323846264338327950288419716939937510582097494459)
-	dA := a - b
-	if dA < -pi {
-		return 2*pi + dA
-	} else if dA > pi {
-		return 2*pi - dA
-	}
-	return dA
-}
-
-func calcAxy(phiDot, rxyAvg [][][]float32, dwpos [][]int, maskWidth int) float32 {
-
-	n := MeshSize()
-	ret := float32(0)
-	for i := 0; i < n[Z]; i++ {
-		for j := 0; j < n[Y]; j++ {
-			for k := dwpos[i][j] - maskWidth; k < dwpos[i][j]+maskWidth+1; k++ {
-				ret += phiDot[i][j][k] * rxyAvg[i][j][k]
-			}
-		}
-	}
-	return ret
-}
-
-func calcAz(thetaDot [][][]float32, dwpos [][]int, maskWidth int) float32 {
-
-	n := MeshSize()
-	ret := float32(0)
-	for i := 0; i < n[Z]; i++ {
-		for j := 0; j < n[Y]; j++ {
-			for k := dwpos[i][j] - maskWidth; k < dwpos[i][j]+maskWidth+1; k++ {
-				ret += thetaDot[i][j][k]
-			}
-		}
-	}
-	return ret
-}
-
-func rxyPhiTheta(m [3][][][]float32) ([][][]float32, [][][]float32, [][][]float32) {
-	_rxyphitheta := ext_rxyphitheta.HostCopy().Vectors()
-	return _rxyphitheta[X], _rxyphitheta[Y], _rxyphitheta[Z]
-}
-
-func rxy(mx float32, my float32) float32 {
-	return float32(math.Sqrt(float64(mx*mx + my*my)))
-}
-
-func phi(mx float32, my float32) float32 {
-	return float32(math.Atan2(float64(my), float64(mx)))
-}
-
-func theta(mz float32) float32 {
-	return float32(math.Acos(float64(mz)))
-}
-
-func getPhi() [][][]float32 {
-	return DWMonitor.phi
-}
-
-func getTheta() [][][]float32 {
-	return DWMonitor.theta
 }
 
 func IntRound(x float32) int {
@@ -289,50 +212,11 @@ func zeroCrossing(theta []float32) int {
 	panic("Can't find domain wall position")
 }
 
-func sign64(a float64) int {
-	if a < 0 {
-		return -1
-	}
-	return 1
-}
-
 // Number of cells the window has shifted
 func GetIntWindowPos() int {
 	c := Mesh().CellSize()
 	windowPos := GetShiftPos()
 	return IntRound(float32(windowPos) / float32(c[Y]))
-}
-
-func angularVel(aNew, aOld [][][]float32, shift int, dt float32) [][][]float32 {
-
-	// shift := windowposNew - windowposOld
-	// dt := float32(tNew - tOld)
-	n := MeshSize()
-
-	ret := make([][][]float32, n[Z])
-
-	if shift >= 0 {
-		for i := 0; i < n[Z]; i++ {
-			ret[i] = make([][]float32, n[Y])
-			for j := 0; j < n[Y]; j++ {
-				ret[i][j] = make([]float32, n[X])
-				for k := 0; k < n[X]-shift; k++ {
-					ret[i][j][k] = deltaAngle(aNew[i][j][k], aOld[i][j][k+shift]) / dt
-				}
-			}
-		}
-	} else {
-		for i := 0; i < n[Z]; i++ {
-			ret[i] = make([][]float32, n[Y])
-			for j := 0; j < n[Y]; j++ {
-				ret[i][j] = make([]float32, n[X])
-				for k := -shift; k < n[X]; k++ {
-					ret[i][j][k] = deltaAngle(aNew[i][j][k], aOld[i][j][k+shift]) / dt
-				}
-			}
-		}
-	}
-	return ret
 }
 
 // Make a slice the same size as the simulation, initialized with zeros.
@@ -381,31 +265,6 @@ func ZeroWorldVector64() [3][][][]float64 {
 	return ret
 }
 
-func getPhiDot() [][][]float32 {
-	return DWMonitor.phidot
-}
-
-func getThetaDot() [][][]float32 {
-	return DWMonitor.thetadot
-}
-
-// Find the average of old and new rxy slices.
-func averageRxy(rxyNew, rxyOld [][][]float32) [][][]float32 {
-	n := MeshSize()
-
-	ret := make([][][]float32, n[Z])
-	for i := 0; i < n[Z]; i++ {
-		ret[i] = make([][]float32, n[Y])
-		for j := 0; j < n[Y]; j++ {
-			ret[i][j] = make([]float32, n[X])
-			for k := 0; k < n[X]; k++ {
-				ret[i][j][k] = 0.5 * (rxyNew[i][j][k] + rxyOld[i][j][k])
-			}
-		}
-	}
-	return ret
-}
-
 // Find the exact dw position by searching for zero crossings of mz along the x and y directions.
 // Take the average of the x-coordinate of these zero crossings to get the DW position.
 func exactPosTrace() float64 {
@@ -430,9 +289,7 @@ func exactPosAvgAvoidEdges(edgeSpacing int) float64 {
 	defer _tmp.Free()
 
 	avg := float64(cuda.Sum(_tmp)) / float64(n[Z]*n[Y]*(n[X]-2*edgeSpacing))
-
 	pct := 1.0 - (1.0-avg)/2.0
-
 	posInMiddle := pct * float64(n[X]-2*edgeSpacing) * c[X]
 	lowerPosBound := float64(edgeSpacing) * c[X]
 
@@ -444,8 +301,7 @@ func exactPosAvg() float64 {
 
 	ws := Mesh().WorldSize()
 
-	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function. They don't return
-	// exactly the same values, however...?
+	// Get average magnetization; M.Comp(Z).Average() is ~ 2x faster than using my avgMz function
 	avg := M.Comp(Z).Average()
 
 	// Percentage of the magnetization which is flipped up gives the position of the domain wall, for example if
@@ -454,19 +310,6 @@ func exactPosAvg() float64 {
 
 	// Convert to actual position in window, then add on window shift
 	return pct*ws[X] + GetShiftPos()
-}
-
-func avgMz(mz [][][]float32) float64 {
-	n := MeshSize()
-	sum := float32(0.0)
-	for i := range mz {
-		for j := range mz[i] {
-			for k := range mz[i][j] {
-				sum += mz[i][j][k]
-			}
-		}
-	}
-	return float64(sum) / float64(n[X]*n[Y]*n[Z])
 }
 
 // Get the exact position of the domain wall from the zero crossing of Mz.

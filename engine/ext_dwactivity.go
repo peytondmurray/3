@@ -62,17 +62,27 @@ func (s *activityStack) update() {
 }
 
 func getExactPosZC() float64 {
-	n := MeshSize()
-	c := Mesh().CellSize()
-	_dwposZCs := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
-	_dwposExact := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
-	defer _dwposZCs.Free()
-	defer _dwposExact.Free()
-	cuda.SetDomainWallIndices(_dwposZCs, M.Buffer())
-	cuda.SetExactDWPosZCInterpolated(_dwposExact, M.Buffer(), _dwposZCs)
-	ret := c[X]*float64(cuda.Sum(_dwposExact))/float64(n[Y]*n[Z]) + GetShiftPos()
+	// n := MeshSize()
+	// c := Mesh().CellSize()
+	// _dwposZCs := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
+	// _dwposExact := cuda.Buffer(1, [3]int{1, n[Y], n[Z]})
+	// defer _dwposZCs.Free()
+	// defer _dwposExact.Free()
+	// cuda.SetDomainWallIndices(_dwposZCs, M.Buffer())
+	// cuda.SetExactDWPosZCInterpolated(_dwposExact, M.Buffer(), _dwposZCs)
+	// ret := c[X]*float64(cuda.Sum(_dwposExact))/float64(n[Y]*n[Z]) + GetShiftPos()
+
+	ret := getExactPosZCCPU()
 
 	return ret
+}
+
+func getExactPosZCCPU() float64 {
+	_rpt := ext_rxyphitheta.HostCopy().Vectors()
+	_mz := M.Comp(Z).HostCopy().Scalars()
+	_intPosZC := getIntDWPos(_rpt[2])
+
+	return float64(exactPosZC(_mz, _intPosZC))
 }
 
 func getExactPosAvg() float64 {

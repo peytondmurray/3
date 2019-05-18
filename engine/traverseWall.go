@@ -14,7 +14,7 @@ func traceWall3D(mz [][][]float32) [][][2]int {
 }
 
 // Some extremely contrived domain wall configurations will not be identified correctly with this method. For example,
-// if an extened bubble domain wall is traced which spans the entire simulation, but isn't the real domain wall,
+// if an extended bubble domain wall is traced which spans the entire simulation, but isn't the real domain wall,
 // this function *might* trace that wall instead of the actual one you want.
 func traceWall2D(mz [][]float32) [][2]int {
 
@@ -117,7 +117,6 @@ func allZCs(mz [][]float32) [][2]int {
 	return uniqueZCs(xRasterZCs(mz), yRasterZCs(mz))
 }
 
-
 // Sort a by the cartesian distance between a[i] and b using insertion sort.
 func insertionSort(a [][2]int, b [2]int, ny int) {
 
@@ -173,7 +172,7 @@ func uniqueZCs(a, b [][2]int) [][2]int {
 		zcs[i] = a[i]
 	}
 	for i := range b {
-		if ! isIn(zcs, b[i]) {
+		if !isIn(zcs, b[i]) {
 			zcs = append(zcs, b[i])
 		}
 	}

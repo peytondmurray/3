@@ -79,6 +79,11 @@ func getExactPosZC() float64 {
 	return ret
 }
 
+func getExactVelMax() float64 {
+	DWMonitor.update()
+	return DWMonitor.velMax
+}
+
 func getExactPosZCCPU() float64 {
 	_rpt := ext_rxyphitheta.HostCopy().Vectors()
 	_mz := M.Comp(Z).HostCopy().Scalars()

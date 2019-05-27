@@ -13,6 +13,7 @@ import (
 var (
 	Az            = NewScalarValue("ext_az", "rad/s", "Out-of-plane domain wall activity", getAz)
 	Axy           = NewScalarValue("ext_axy", "rad/s", "In-plane domain wall activity", getAxy)
+	ExactDWPosMax = NewScalarValue("ext_exactdwvelmax", "m/s", "Maximum speed of a point along the domain wall", getExactVelMax)
 	ExactDWVelAvg = NewScalarValue("ext_exactdwvelavg", "m/s", "Speed of domain wall", getExactVelAvg)
 	ExactDWPosAvg = NewScalarValue("ext_exactdwposavg", "m", "Position of domain wall from start", getExactPosAvg)
 	ExactDWPosZC  = NewScalarValue("ext_exactdwposzc", "m", "Position of the domain wall from start", getExactPosZC)
@@ -35,6 +36,7 @@ type activityStack struct {
 	// DWVel
 	posAvg float64
 	velAvg float64
+	velMax float64
 
 	// DWActivity
 	windowpos   int

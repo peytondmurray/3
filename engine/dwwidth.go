@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	DWWidth     = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", setDWWidthCPU)
-	// DWWidth     = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", setDWWidth)
+	// DWWidth     = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", setDWWidthCPU)
+	DWWidth     = NewScalarValue("ext_dwwidth", "m", "Width of the domain wall, averaged along y.", setDWWidth)
 	DWHalfWidth = 10 //5 is usually a safe number. If you increase this, you get better domain wall fits but fitting will fail if Mz >= 1 (which can happen due to numerical error), which gets more likely the futher away from the domain wall you are.
 )
 

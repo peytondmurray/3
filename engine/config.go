@@ -3,6 +3,7 @@ package engine
 // Utilities for setting magnetic configurations.
 
 import (
+	// "fmt"
 	"github.com/mumax/3/data"
 	"math"
 	"math/rand"
@@ -162,6 +163,14 @@ func TwoDomain(mx1, my1, mz1, mxwall, mywall, mzwall, mx2, my2, mz2 float64) Con
 func TwoDomainBlochLines(mx1, my1, mz1, mx2, my2, mz2 float64) Config {
 	ww := 2 * Mesh().CellSize()[X] // wall width in cells
 	ysize := Mesh().WorldSize()[Y]
+
+	if mz1 > 0 {
+		ShiftMagL[Z] = 1.0
+	} else {
+		ShiftMagL[Z] = -1.0
+	}
+	ShiftMagR[Z] = -1 * ShiftMagL[Z]
+
 	return func(x, y, z float64) data.Vector {
 		var m data.Vector
 		if x < 0 {
@@ -170,8 +179,15 @@ func TwoDomainBlochLines(mx1, my1, mz1, mx2, my2, mz2 float64) Config {
 			m = data.Vector{mx2, my2, mz2}
 		}
 		gauss := math.Exp(-sqr64(x / ww))
-		m[X] = (1-gauss)*m[X] + gauss*math.Sin(2*math.Pi*y/ysize)
-		m[Y] = (1-gauss)*m[Y] + gauss*math.Cos(2*math.Pi*y/ysize)
+
+		if y > 0 {
+			m[X] = (1-gauss)*m[X] + gauss*math.Sin(4*math.Pi*y/ysize)
+			m[Y] = (1-gauss)*m[Y] + gauss*math.Cos(4*math.Pi*y/ysize)
+		} else {
+			m[X] = (1-gauss)*m[X] - gauss*math.Sin(4*math.Pi*y/ysize)
+			m[Y] = (1-gauss)*m[Y] + gauss*math.Cos(4*math.Pi*y/ysize)
+		}
+
 		m[Z] = (1 - gauss) * m[Z]
 		return m
 	}

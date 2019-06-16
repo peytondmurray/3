@@ -5,14 +5,19 @@ import (
 	"os"
 )
 
-func init() {
-	DeclFunc("ext_saverodrigues", saveRodrigues, "Save the set of rotation axes and angles needed to rotate the magnetization from (0, 0, 1) to the current orientation")
-	DeclFunc("ext_savecellcenterlocs", saveCellCenterLocs, "Save the locations of the cell centers")
-}
-
 var (
 	saveRodriguesIndex int
+	minDiv             float64
+	maxDiv             float64
 )
+
+func init() {
+	DeclFunc("ext_saverodrigues", saveRodrigues, "Save the set of rotation axes and angles needed to rotate the magnetization from (0, 0, 1) to the current orientation")
+	DeclFunc("ext_saverodriguesdiv", saveRodriguesDiv, "Save the set of rotation axes and angles needed to rotate the magnetization from (0, 0, 1) to the current orientation")
+	DeclFunc("ext_savecellcenterlocs", saveCellCenterLocs, "Save the locations of the cell centers")
+	DeclVar("minDiv", &minDiv, "Get the min divergence")
+	DeclVar("maxDiv", &maxDiv, "Get the max divergence")
+}
 
 func saveRodrigues() {
 	n := MeshSize()
@@ -25,7 +30,7 @@ func saveRodrigues() {
 
 	// Write timestamp
 	f.WriteString(fmt.Sprintf("#time = %E\n", Time))
-	f.WriteString(fmt.Sprintf("#ix,iy,iz,nx,ny,nz,angle\n"))
+	f.WriteString(fmt.Sprintf("#ix,iy,iz,nx,ny,nz,angle\n")) //nx, ny, nz are the axis around which to rotate.
 
 	// Write values
 	for i := 0; i < n[Z]; i++ {
@@ -50,12 +55,12 @@ func saveCellCenterLocs() {
 	check(err)
 
 	// Write timestamp
-	f.WriteString(fmt.Sprintf("#x,y,z\n"))
+	f.WriteString(fmt.Sprintf("#ix,iy,iz,x,y,z\n"))
 
 	for i := 0; i < n[Z]; i++ {
 		for j := 0; j < n[Y]; j++ {
 			for k := 0; k < n[X]; k++ {
-				f.WriteString(fmt.Sprintf("%E,%E,%E\n", (float64(k)+0.5)*c[X], (float64(j)+0.5)*c[Y], (float64(i)+0.5)*c[Z]))
+				f.WriteString(fmt.Sprintf("%d,%d,%d,%E,%E,%E\n", k, j, i, (float64(k)+0.5)*c[X], (float64(j)+0.5)*c[Y], (float64(i)+0.5)*c[Z]))
 			}
 		}
 	}

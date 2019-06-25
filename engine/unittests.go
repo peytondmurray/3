@@ -48,20 +48,6 @@ func isClose(a, b, rtol, atol float64) bool {
 	return math.Abs(a-b) <= atol+rtol*math.Abs(b)
 }
 
-func diffMap(a, b [][][]float32, name string) {
-	ret := ZeroWorldScalar64()
-	for i := range ret {
-		for j := range ret[i] {
-			for k := range ret[i][j] {
-				if isClose(float64(a[i][j][k]), float64(b[i][j][k]), 1e-4, 1e-8) {
-					ret[i][j][k] = 1
-				}
-			}
-		}
-	}
-	saveVTK(ret, name)
-}
-
 func getNearDWCPU(a [][][]float32, dwpos [][]int, mw int) [][][]float32 {
 	n := MeshSize()
 	ret := make([][][]float32, len(a))

@@ -1,7 +1,11 @@
 #include "stencil.h"
 
+/*
+Given the indices of the zero crossings of Mz, (which are at the domain wall), calculate the exact
+location of the domain wall by linearly interpolating across the zero crossing.
+*/
 extern "C" __global__ void dwPosInterpolated(float* __restrict__ dst, float* __restrict__ zc, float* __restrict__ mz,
-                                       int Nx, int Ny, int Nz) {
+                                             int Nx, int Ny, int Nz) {
 
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iy = blockIdx.y * blockDim.y + threadIdx.y;

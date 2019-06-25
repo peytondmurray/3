@@ -7,16 +7,11 @@ import (
 
 var (
 	saveRodriguesIndex int
-	minDiv             float64
-	maxDiv             float64
 )
 
 func init() {
 	DeclFunc("ext_saverodrigues", saveRodrigues, "Save the set of rotation axes and angles needed to rotate the magnetization from (0, 0, 1) to the current orientation")
-	DeclFunc("ext_saverodriguesdiv", saveRodriguesDiv, "Save the set of rotation axes and angles needed to rotate the magnetization from (0, 0, 1) to the current orientation")
 	DeclFunc("ext_savecellcenterlocs", saveCellCenterLocs, "Save the locations of the cell centers")
-	DeclVar("minDiv", &minDiv, "Get the min divergence")
-	DeclVar("maxDiv", &maxDiv, "Get the max divergence")
 }
 
 func saveRodrigues() {
